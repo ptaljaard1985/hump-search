@@ -18,7 +18,11 @@ When summarising content, focus on:
 - Key concepts or frameworks mentioned in the content itself
 - What type of client this works best for (e.g. pre-retirees, nervous investors, couples, high-net-worth)
 
-Do NOT describe the content academically. Describe it as a practical tool an adviser would use. Do NOT reference frameworks or concepts that are not explicitly in the content. Write in plain English, approximately 150 words.`;
+Do NOT describe the content academically. Describe it as a practical tool an adviser would use. Do NOT reference frameworks or concepts that are not explicitly in the content. Write in plain English, approximately 150 words.
+
+LANGUAGE RULES:
+- Always use UK English spelling (e.g. behaviour, organise, colour, favour, practise, capitalise)
+- Always use "adviser" — never "advisor"`;
 
 export async function generateSummary(
   content: string,

@@ -27,7 +27,9 @@ RULES:
 - The title MUST be a markdown link: [Title](URL)
 - Keep explanations brief — two sentences maximum per item.
 - Do not add a preamble or introduction. Start directly with the first recommendation.
-- Do not add a closing paragraph or summary.`;
+- Do not add a closing paragraph or summary.
+- Always use UK English spelling (e.g. behaviour, organise, colour, favour, practise, capitalise).
+- Always use "adviser" — never "advisor".`;
 
 export async function getRecommendations(
   query: string,

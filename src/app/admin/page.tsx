@@ -5,7 +5,7 @@ import { ContentType } from "@/lib/types";
 
 const CONTENT_TYPES: { value: ContentType; label: string; inputMode: "text" | "file" }[] = [
   { value: "article", label: "Client Article", inputMode: "text" },
-  { value: "advisor-doc", label: "Advisor Document", inputMode: "text" },
+  { value: "advisor-doc", label: "Adviser Document", inputMode: "text" },
   { value: "infographic", label: "Infographic", inputMode: "file" },
   { value: "pdf-guide", label: "PDF Guide", inputMode: "file" },
   { value: "video", label: "Video", inputMode: "text" },

@@ -96,7 +96,7 @@ export default function SearchPage() {
                   // Type labels come through as italic
                   const typeLabels: Record<string, string> = {
                     "article": "Article",
-                    "advisor-doc": "Advisor Document",
+                    "advisor-doc": "Adviser Document",
                     "infographic": "Infographic",
                     "pdf-guide": "PDF Guide",
                     "video": "Video",
