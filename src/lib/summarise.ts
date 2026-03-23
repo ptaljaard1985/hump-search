@@ -27,13 +27,16 @@ LANGUAGE RULES:
 export async function generateSummary(
   content: string,
   contentType: ContentType,
-  title: string
+  title: string,
+  mediaType?: string
 ): Promise<string> {
   const isInfographic = contentType === "infographic";
 
   const userMessage = isInfographic
     ? `This is an infographic titled "${title}". Please analyse the image and create a search-optimised summary describing when and how a financial adviser would use this with clients.`
     : `This is a ${contentType.replace("-", " ")} titled "${title}". Please create a search-optimised summary:\n\n${content}`;
+
+  const imageMediaType = (mediaType || "image/png") as "image/png" | "image/jpeg" | "image/gif" | "image/webp";
 
   const response = await getAnthropic().messages.create({
     model: isInfographic ? "claude-opus-4-20250514" : "claude-sonnet-4-20250514",
@@ -45,7 +48,7 @@ export async function generateSummary(
         role: "user",
         content: isInfographic
           ? [
-              { type: "image", source: { type: "base64", media_type: "image/png", data: content } },
+              { type: "image", source: { type: "base64", media_type: imageMediaType, data: content } },
               { type: "text", text: userMessage },
             ]
           : userMessage,

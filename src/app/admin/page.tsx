@@ -30,6 +30,7 @@ export default function AdminPage() {
   const [contentType, setContentType] = useState<ContentType>("article");
   const [textContent, setTextContent] = useState("");
   const [fileContent, setFileContent] = useState<string | null>(null);
+  const [fileMediaType, setFileMediaType] = useState<string>("");
   const [fileName, setFileName] = useState("");
   const [summary, setSummary] = useState("");
   const [summaryGenerated, setSummaryGenerated] = useState(false);
@@ -79,8 +80,10 @@ export default function AdminPage() {
     const reader = new FileReader();
     reader.onload = () => {
       const result = reader.result as string;
-      // Extract base64 data after the prefix
+      // Extract media type and base64 data
+      const mediaType = result.split(";")[0].split(":")[1];
       const base64 = result.split(",")[1];
+      setFileMediaType(mediaType);
       setFileContent(base64);
     };
     reader.readAsDataURL(file);
@@ -96,7 +99,7 @@ export default function AdminPage() {
       const res = await fetch("/api/generate-summary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password, title, type: contentType, content }),
+        body: JSON.stringify({ password, title, type: contentType, content, mediaType: fileMediaType }),
       });
 
       if (!res.ok) throw new Error("Failed to generate summary");
@@ -122,7 +125,7 @@ export default function AdminPage() {
       const res = await fetch("/api/index-content", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password, title, url, type: contentType, content, summary }),
+        body: JSON.stringify({ password, title, url, type: contentType, content, summary, mediaType: fileMediaType }),
       });
 
       if (!res.ok) {

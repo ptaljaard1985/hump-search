@@ -8,13 +8,14 @@ import crypto from "crypto";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { password, title, url, type, content, summary: providedSummary } = body as {
+  const { password, title, url, type, content, summary: providedSummary, mediaType } = body as {
     password: string;
     title: string;
     url: string;
     type: ContentType;
     content: string;
     summary?: string;
+    mediaType?: string;
   };
 
   if (!isValidPassword(password)) {
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
 
   try {
     // Generate summary if not provided (or use the edited one)
-    const summary = providedSummary || (await generateSummary(content, type, title));
+    const summary = providedSummary || (await generateSummary(content, type, title, mediaType));
 
     // Generate embedding from the summary
     const embedding = await generateEmbedding(summary);
