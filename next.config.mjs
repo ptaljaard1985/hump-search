@@ -3,11 +3,11 @@ const nextConfig = {
   async headers() {
     return [
       {
-        source: "/search",
+        source: "/(.*)",
         headers: [
           {
             key: "X-Frame-Options",
-            value: "SAMEORIGIN",
+            value: "",
           },
           {
             key: "Content-Security-Policy",
