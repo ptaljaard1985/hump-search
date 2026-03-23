@@ -133,6 +133,11 @@ export default function AdminPage() {
         throw new Error(data?.error || "Failed to index content");
       }
 
+      const data = await res.json();
+      // Add the new item to local state immediately instead of re-fetching
+      if (data.item) {
+        setItems((prev) => [...prev, data.item]);
+      }
       setStatus("Content indexed successfully!");
       setTitle("");
       setUrl("");
@@ -141,7 +146,6 @@ export default function AdminPage() {
       setFileName("");
       setSummary("");
       setSummaryGenerated(false);
-      await loadItems();
     } catch (err) {
       setStatus(`Error: ${err instanceof Error ? err.message : "Unknown error"}`);
     } finally {
