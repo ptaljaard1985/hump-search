@@ -38,7 +38,13 @@ export default function AdminPage() {
   const [status, setStatus] = useState("");
   const [items, setItems] = useState<IndexedItem[]>([]);
 
+  const [filterType, setFilterType] = useState<ContentType | "all">("all");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
   const selectedType = CONTENT_TYPES.find((t) => t.value === contentType)!;
+
+  const filteredItems =
+    filterType === "all" ? items : items.filter((item) => item.type === filterType);
 
   const loadItems = useCallback(async () => {
     const res = await fetch("/api/content", {
@@ -302,36 +308,105 @@ export default function AdminPage() {
 
         {/* Indexed Content List */}
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <h2 className="text-lg font-medium mb-4">
-            Indexed Content ({items.length} items)
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-medium">
+              Indexed Content ({filteredItems.length}{filterType !== "all" ? ` of ${items.length}` : ""} items)
+            </h2>
+          </div>
 
-          {items.length === 0 ? (
+          {/* Type filter tabs */}
+          {items.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-4">
+              <button
+                onClick={() => setFilterType("all")}
+                className={`text-xs px-3 py-1 rounded-full ${
+                  filterType === "all"
+                    ? "bg-black text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                All ({items.length})
+              </button>
+              {CONTENT_TYPES.map((t) => {
+                const count = items.filter((item) => item.type === t.value).length;
+                if (count === 0) return null;
+                return (
+                  <button
+                    key={t.value}
+                    onClick={() => setFilterType(t.value)}
+                    className={`text-xs px-3 py-1 rounded-full ${
+                      filterType === t.value
+                        ? "bg-black text-white"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    }`}
+                  >
+                    {t.label} ({count})
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {filteredItems.length === 0 ? (
             <p className="text-sm text-gray-500">No content indexed yet.</p>
           ) : (
             <div className="space-y-3">
-              {items.map((item) => (
+              {filteredItems.map((item) => (
                 <div
                   key={item.id}
-                  className="border rounded p-3 flex justify-between items-start"
+                  className="border rounded-lg overflow-hidden"
                 >
-                  <div className="flex-1 mr-4">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm">{item.title}</span>
-                      <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">
-                        {item.type}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1 line-clamp-2">
-                      {item.summary}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => handleDelete(item.id)}
-                    className="text-red-500 text-xs hover:text-red-700"
+                  <div
+                    className="p-4 flex justify-between items-start cursor-pointer hover:bg-gray-50"
+                    onClick={() =>
+                      setExpandedId(expandedId === item.id ? null : item.id)
+                    }
                   >
-                    Delete
-                  </button>
+                    <div className="flex-1 mr-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium text-sm">{item.title}</span>
+                        <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">
+                          {item.type}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400">
+                        {new Date(item.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <span className="text-gray-400 text-xs mt-1">
+                      {expandedId === item.id ? "collapse" : "expand"}
+                    </span>
+                  </div>
+
+                  {expandedId === item.id && (
+                    <div className="px-4 pb-4 border-t bg-gray-50">
+                      <div className="mt-3">
+                        <p className="text-xs font-medium text-gray-500 mb-1">URL</p>
+                        <a
+                          href={item.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-600 underline break-all"
+                        >
+                          {item.url}
+                        </a>
+                      </div>
+                      <div className="mt-3">
+                        <p className="text-xs font-medium text-gray-500 mb-1">Summary</p>
+                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                          {item.summary}
+                        </p>
+                      </div>
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          onClick={() => handleDelete(item.id)}
+                          className="text-red-500 text-xs hover:text-red-700 border border-red-200 px-3 py-1 rounded"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
