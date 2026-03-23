@@ -1,166 +1,112 @@
 (function () {
-  var API_URL = (function () {
-    var scripts = document.getElementsByTagName("script");
-    for (var i = 0; i < scripts.length; i++) {
-      if (scripts[i].src && scripts[i].src.indexOf("widget.js") !== -1) {
-        return new URL(scripts[i].src).origin;
-      }
-    }
-    return "";
-  })();
+  // Find our own script tag and insert the widget before it
+  var scriptEl = document.querySelector('script[src*="widget.js"]');
+  if (!scriptEl) return;
 
-  function init() {
-    var container = document.getElementById("hum-search");
-    if (!container) return;
-    setup(container);
+  var API_URL = new URL(scriptEl.src).origin;
+
+  // Create container
+  var container = document.createElement("div");
+  scriptEl.parentNode.insertBefore(container, scriptEl);
+
+  // Styles
+  var style = document.createElement("style");
+  style.textContent =
+    ".hum-w{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;max-width:700px;margin:0 auto}" +
+    ".hum-w *{box-sizing:border-box}" +
+    ".hum-sb{display:flex;gap:8px;margin-bottom:24px}" +
+    ".hum-si{flex:1;padding:12px 16px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;outline:none}" +
+    ".hum-si:focus{border-color:#333}" +
+    ".hum-bt{padding:12px 24px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;white-space:nowrap}" +
+    ".hum-bt:hover{background:#333}" +
+    ".hum-bt:disabled{opacity:0.5;cursor:not-allowed}" +
+    ".hum-rc{border:1px solid #eee;border-radius:8px;padding:16px;margin-bottom:12px}" +
+    ".hum-rt{font-size:16px;font-weight:600;margin:0 0 4px}" +
+    ".hum-rt a{color:#1a56db;text-decoration:none}" +
+    ".hum-rt a:hover{text-decoration:underline}" +
+    ".hum-ry{display:inline-block;font-size:11px;background:#f3f4f6;color:#666;padding:2px 8px;border-radius:12px;margin-bottom:8px}" +
+    ".hum-rd{font-size:14px;color:#444;line-height:1.5;margin:0}" +
+    ".hum-ld{font-size:14px;color:#888}";
+  document.head.appendChild(style);
+
+  // Build UI
+  container.className = "hum-w";
+
+  var box = document.createElement("div");
+  box.className = "hum-sb";
+
+  var input = document.createElement("input");
+  input.type = "text";
+  input.className = "hum-si";
+  input.placeholder = "Describe what you need, e.g. my client is nervous about market volatility...";
+
+  var btn = document.createElement("button");
+  btn.className = "hum-bt";
+  btn.textContent = "Search";
+
+  box.appendChild(input);
+  box.appendChild(btn);
+  container.appendChild(box);
+
+  var results = document.createElement("div");
+  container.appendChild(results);
+
+  function esc(s) {
+    var d = document.createElement("div");
+    d.appendChild(document.createTextNode(s));
+    return d.innerHTML;
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
-  }
+  function search() {
+    var q = input.value.trim();
+    if (!q) return;
+    btn.disabled = true;
+    btn.textContent = "Searching...";
+    results.innerHTML = '<div class="hum-ld">Finding the best content for your situation...</div>';
 
-  function setup(container) {
-    // Styles
-    var style = document.createElement("style");
-    style.textContent =
-      "#hum-search{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:700px;margin:0 auto}" +
-      "#hum-search *{box-sizing:border-box}" +
-      ".hum-search-box{display:flex;gap:8px;margin-bottom:24px}" +
-      ".hum-search-input{flex:1;padding:12px 16px;border:1px solid #e0e0e0;border-radius:8px;font-size:14px;outline:none}" +
-      ".hum-search-input:focus{border-color:#333}" +
-      ".hum-search-btn{padding:12px 24px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;white-space:nowrap}" +
-      ".hum-search-btn:hover{background:#333}" +
-      ".hum-search-btn:disabled{opacity:0.5;cursor:not-allowed}" +
-      ".hum-search-loading{font-size:14px;color:#888}" +
-      ".hum-result-card{border:1px solid #eee;border-radius:8px;padding:16px;margin-bottom:12px}" +
-      ".hum-result-title{font-size:16px;font-weight:600;margin:0 0 4px 0}" +
-      ".hum-result-title a{color:#1a56db;text-decoration:none}" +
-      ".hum-result-title a:hover{text-decoration:underline}" +
-      ".hum-result-type{display:inline-block;font-size:11px;background:#f3f4f6;color:#666;padding:2px 8px;border-radius:12px;margin-bottom:8px}" +
-      ".hum-result-desc{font-size:14px;color:#444;line-height:1.5;margin:0}" +
-      ".hum-no-match{font-size:14px;color:#444;line-height:1.6}";
-    document.head.appendChild(style);
-
-    // Build DOM elements
-    var box = document.createElement("div");
-    box.className = "hum-search-box";
-
-    var input = document.createElement("input");
-    input.type = "text";
-    input.className = "hum-search-input";
-    input.placeholder = "Describe what you need, e.g. my client is nervous about market volatility...";
-
-    var btn = document.createElement("button");
-    btn.className = "hum-search-btn";
-    btn.textContent = "Search";
-
-    box.appendChild(input);
-    box.appendChild(btn);
-
-    var results = document.createElement("div");
-    results.className = "hum-search-results";
-
-    container.appendChild(box);
-    container.appendChild(results);
-
-    // Type label mapping
-    var typeLabels = {
-      "article": "Article",
-      "advisor-doc": "Adviser Document",
-      "infographic": "Infographic",
-      "pdf-guide": "PDF Guide",
-      "video": "Video",
-      "email-sequence": "Email Sequence"
-    };
-
-    function escapeHtml(str) {
-      var div = document.createElement("div");
-      div.appendChild(document.createTextNode(str));
-      return div.innerHTML;
-    }
-
-    function parseMarkdown(md) {
-      var sections = md.split(/^---$/m).filter(function (s) {
-        return s.trim();
-      });
-      var cards = [];
-      sections.forEach(function (section) {
-        var titleMatch = section.match(/###\s*\[([^\]]+)\]\(([^)]+)\)/);
-        var typeMatch = section.match(/\*([^*]+)\*/);
-        var lines = section.trim().split("\n");
-        var descLines = [];
-        var pastType = false;
-        lines.forEach(function (line) {
-          var trimmed = line.trim();
-          if (!trimmed) return;
-          if (trimmed.match(/^###/)) return;
-          if (trimmed.match(/^\*[^*]+\*$/) && !pastType) {
-            pastType = true;
-            return;
+    fetch(API_URL + "/api/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: q })
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var md = data.recommendation || "";
+        var parts = md.split(/^---$/m);
+        var html = "";
+        for (var i = 0; i < parts.length; i++) {
+          var s = parts[i].trim();
+          if (!s) continue;
+          var tm = s.match(/###\s*\[([^\]]+)\]\(([^)]+)\)/);
+          if (!tm) continue;
+          var tp = s.match(/\*([^*]+)\*/);
+          var lines = s.split("\n");
+          var desc = [];
+          var past = false;
+          for (var j = 0; j < lines.length; j++) {
+            var l = lines[j].trim();
+            if (!l || l.indexOf("###") === 0) continue;
+            if (/^\*[^*]+\*$/.test(l) && !past) { past = true; continue; }
+            if (past) desc.push(l);
           }
-          if (pastType) descLines.push(trimmed);
-        });
-        if (titleMatch) {
-          cards.push({
-            title: titleMatch[1],
-            url: titleMatch[2],
-            type: typeMatch ? typeMatch[1] : "",
-            desc: descLines.join(" ")
-          });
+          html += '<div class="hum-rc">' +
+            '<p class="hum-rt"><a href="' + esc(tm[2]) + '" target="_blank">' + esc(tm[1]) + '</a></p>' +
+            '<span class="hum-ry">' + esc(tp ? tp[1] : "") + '</span>' +
+            '<p class="hum-rd">' + esc(desc.join(" ")) + '</p></div>';
         }
-      });
-      return cards;
-    }
-
-    function renderCards(cards) {
-      if (cards.length === 0) {
-        results.innerHTML = '<div class="hum-no-match">No strong matches found. Try describing your situation differently.</div>';
-        return;
-      }
-      var html = "";
-      cards.forEach(function (card) {
-        var typeLabel = typeLabels[card.type] || typeLabels[card.type.toLowerCase()] || card.type;
-        html +=
-          '<div class="hum-result-card">' +
-          '<p class="hum-result-title"><a href="' + escapeHtml(card.url) + '" target="_blank">' + escapeHtml(card.title) + '</a></p>' +
-          '<span class="hum-result-type">' + escapeHtml(typeLabel) + '</span>' +
-          '<p class="hum-result-desc">' + escapeHtml(card.desc) + '</p>' +
-          '</div>';
-      });
-      results.innerHTML = html;
-    }
-
-    function doSearch() {
-      var query = input.value.trim();
-      if (!query) return;
-      btn.disabled = true;
-      btn.textContent = "Searching...";
-      results.innerHTML = '<div class="hum-search-loading">Finding the best content for your situation...</div>';
-
-      fetch(API_URL + "/api/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: query })
+        results.innerHTML = html || '<div class="hum-ld">No strong matches found. Try describing your situation differently.</div>';
       })
-        .then(function (res) { return res.json(); })
-        .then(function (data) {
-          var cards = parseMarkdown(data.recommendation || "");
-          renderCards(cards);
-        })
-        .catch(function () {
-          results.innerHTML = '<div class="hum-no-match">Sorry, something went wrong. Please try again.</div>';
-        })
-        .finally(function () {
-          btn.disabled = false;
-          btn.textContent = "Search";
-        });
-    }
-
-    btn.addEventListener("click", doSearch);
-    input.addEventListener("keydown", function (e) {
-      if (e.key === "Enter") doSearch();
-    });
+      .catch(function () {
+        results.innerHTML = '<div class="hum-ld">Sorry, something went wrong. Please try again.</div>';
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = "Search";
+      });
   }
+
+  btn.addEventListener("click", search);
+  input.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") search();
+  });
 })();
