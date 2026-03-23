@@ -1,8 +1,12 @@
 (function () {
   var API_URL = (function () {
     var scripts = document.getElementsByTagName("script");
-    var src = scripts[scripts.length - 1].src;
-    return new URL(src).origin;
+    for (var i = 0; i < scripts.length; i++) {
+      if (scripts[i].src && scripts[i].src.indexOf("widget.js") !== -1) {
+        return new URL(scripts[i].src).origin;
+      }
+    }
+    return "";
   })();
 
   function init() {
