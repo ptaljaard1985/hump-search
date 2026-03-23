@@ -13,8 +13,20 @@
     return url.origin;
   })();
 
-  var container = document.getElementById("hum-search");
-  if (!container) return;
+  function init() {
+    var container = document.getElementById("hum-search");
+    if (!container) return;
+    setup(container);
+  }
+
+  // Wait for DOM if not ready yet
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+
+  function setup(container) {
 
   // Styles
   var style = document.createElement("style");
@@ -168,4 +180,5 @@
   input.addEventListener("keydown", function (e) {
     if (e.key === "Enter") doSearch();
   });
+  } // end setup
 })();
