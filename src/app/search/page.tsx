@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import ReactMarkdown from "react-markdown";
 
 export default function SearchPage() {
   const [query, setQuery] = useState("");
@@ -70,16 +71,22 @@ export default function SearchPage() {
 
         {!loading && searched && recommendation && (
           <div className="prose prose-sm max-w-none">
-            <div
-              className="whitespace-pre-wrap leading-relaxed"
-              dangerouslySetInnerHTML={{
-                __html: recommendation
-                  .replace(
-                    /(https?:\/\/[^\s)]+)/g,
-                    '<a href="$1" target="_blank" class="text-blue-600 underline">$1</a>'
-                  ),
+            <ReactMarkdown
+              components={{
+                a: ({ href, children }) => (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 underline"
+                  >
+                    {children}
+                  </a>
+                ),
               }}
-            />
+            >
+              {recommendation}
+            </ReactMarkdown>
           </div>
         )}
 
