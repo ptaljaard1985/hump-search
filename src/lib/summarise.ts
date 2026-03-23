@@ -9,14 +9,16 @@ const SYSTEM_PROMPT = `You are a content indexer for HUM Premium, a behavioural 
 
 HUM Premium helps advisers communicate better with clients, reinforce long-term decision-making, and build deeper relationships. Members use this content in client newsletters, meetings, on their websites, and in follow-up communications.
 
+The platform believes that good financial advice is primarily about behaviour, not products, and that consistency of communication matters more than intensity.
+
 When summarising content, focus on:
 - What client scenarios or situations this content is useful for
 - What emotional or behavioural challenge it addresses
 - When an adviser would reach for this (e.g. after a panic call, before a first meeting, during a market correction, when onboarding a new client)
-- Key concepts or frameworks mentioned
+- Key concepts or frameworks mentioned in the content itself
 - What type of client this works best for (e.g. pre-retirees, nervous investors, couples, high-net-worth)
 
-Do NOT describe the content academically. Describe it as a practical tool an adviser would use. Write in plain English, approximately 150 words.`;
+Do NOT describe the content academically. Describe it as a practical tool an adviser would use. Do NOT reference frameworks or concepts that are not explicitly in the content. Write in plain English, approximately 150 words.`;
 
 export async function generateSummary(
   content: string,

@@ -25,24 +25,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  // Generate summary if not provided (or use the edited one)
-  const summary = providedSummary || (await generateSummary(content, type, title));
+  try {
+    // Generate summary if not provided (or use the edited one)
+    const summary = providedSummary || (await generateSummary(content, type, title));
 
-  // Generate embedding from the summary
-  const embedding = await generateEmbedding(summary);
+    // Generate embedding from the summary
+    const embedding = await generateEmbedding(summary);
 
-  const item = {
-    id: crypto.randomUUID(),
-    title,
-    url,
-    type,
-    summary,
-    embedding,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
+    const item = {
+      id: crypto.randomUUID(),
+      title,
+      url,
+      type,
+      summary,
+      embedding,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
 
-  await addContentItem(item);
+    await addContentItem(item);
 
-  return NextResponse.json({ success: true, item: { ...item, embedding: undefined } });
+    return NextResponse.json({ success: true, item: { ...item, embedding: undefined } });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("Index content error:", message);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

@@ -119,7 +119,10 @@ export default function AdminPage() {
         body: JSON.stringify({ password, title, url, type: contentType, content, summary }),
       });
 
-      if (!res.ok) throw new Error("Failed to index content");
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Failed to index content");
+      }
 
       setStatus("Content indexed successfully!");
       setTitle("");
