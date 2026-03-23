@@ -9,7 +9,9 @@ export async function getContentIndex(): Promise<ContentIndex> {
     if (blobs.length === 0) {
       return { items: [] };
     }
-    const response = await fetch(blobs[0].url);
+    const response = await fetch(blobs[0].url + "?t=" + Date.now(), {
+      cache: "no-store",
+    });
     return (await response.json()) as ContentIndex;
   } catch {
     return { items: [] };

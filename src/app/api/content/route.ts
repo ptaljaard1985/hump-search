@@ -3,6 +3,8 @@ import { getContentIndex, deleteContentItem, updateContentItem } from "@/lib/sto
 import { generateEmbedding } from "@/lib/embeddings";
 import { isValidPassword } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   const password = request.headers.get("x-admin-password") || "";
 
