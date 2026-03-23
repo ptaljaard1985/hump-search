@@ -70,19 +70,54 @@ export default function SearchPage() {
         )}
 
         {!loading && searched && recommendation && (
-          <div className="prose prose-sm max-w-none">
+          <div className="space-y-4">
             <ReactMarkdown
               components={{
+                h3: ({ children }) => {
+                  // h3 contains the linked title
+                  return (
+                    <div className="pt-2">
+                      <h3 className="text-base font-semibold">{children}</h3>
+                    </div>
+                  );
+                },
                 a: ({ href, children }) => (
                   <a
                     href={href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 underline"
+                    className="text-blue-600 hover:text-blue-800 underline"
                   >
                     {children}
                   </a>
                 ),
+                em: ({ children }) => {
+                  const text = String(children);
+                  // Type labels come through as italic
+                  const typeLabels: Record<string, string> = {
+                    "article": "Article",
+                    "advisor-doc": "Advisor Document",
+                    "infographic": "Infographic",
+                    "pdf-guide": "PDF Guide",
+                    "video": "Video",
+                    "email-sequence": "Email Sequence",
+                  };
+                  const label = typeLabels[text] || typeLabels[text.toLowerCase()];
+                  if (label || text.includes("Article") || text.includes("Document") || text.includes("Infographic") || text.includes("Guide") || text.includes("Video") || text.includes("Sequence")) {
+                    return (
+                      <span className="inline-block text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded mb-2">
+                        {label || text}
+                      </span>
+                    );
+                  }
+                  return <em>{children}</em>;
+                },
+                p: ({ children }) => (
+                  <p className="text-sm text-gray-700 leading-relaxed mt-1 mb-0">
+                    {children}
+                  </p>
+                ),
+                hr: () => <hr className="border-gray-200 my-4" />,
               }}
             >
               {recommendation}
