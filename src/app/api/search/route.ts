@@ -3,20 +3,44 @@ import { generateEmbedding, findSimilarContent } from "@/lib/embeddings";
 import { getRecommendations } from "@/lib/search";
 import { getContentIndex } from "@/lib/storage";
 
+const ALLOWED_ORIGINS = [
+  "https://www.humansundermanagement.com",
+  "https://humansundermanagement.com",
+  "https://hump-search-git-main-pierre-simplewealths-projects.vercel.app",
+];
+
+function corsHeaders(origin: string | null) {
+  const headers: Record<string, string> = {
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+  if (origin && ALLOWED_ORIGINS.some((o) => origin.startsWith(o))) {
+    headers["Access-Control-Allow-Origin"] = origin;
+  }
+  return headers;
+}
+
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  return NextResponse.json({}, { headers: corsHeaders(origin) });
+}
+
 export async function POST(request: NextRequest) {
+  const origin = request.headers.get("origin");
   const body = await request.json();
   const { query } = body as { query: string };
 
   if (!query || query.trim().length === 0) {
-    return NextResponse.json({ error: "Query is required" }, { status: 400 });
+    return NextResponse.json({ error: "Query is required" }, { status: 400, headers: corsHeaders(origin) });
   }
 
   const index = await getContentIndex();
 
   if (index.items.length === 0) {
-    return NextResponse.json({
-      recommendation: "The content library is empty. Please index some content first.",
-    });
+    return NextResponse.json(
+      { recommendation: "The content library is empty. Please index some content first." },
+      { headers: corsHeaders(origin) }
+    );
   }
 
   // Stage 1: Vector search — find top 10 candidates
@@ -32,9 +56,8 @@ export async function POST(request: NextRequest) {
   const mentionedUrls = recommendation.match(urlPattern) || [];
   const hasInvalidUrl = mentionedUrls.some((url) => !validUrls.has(url));
 
-  return NextResponse.json({
-    recommendation,
-    hasInvalidUrl,
-    candidateCount: candidates.length,
-  });
+  return NextResponse.json(
+    { recommendation, hasInvalidUrl, candidateCount: candidates.length },
+    { headers: corsHeaders(origin) }
+  );
 }
