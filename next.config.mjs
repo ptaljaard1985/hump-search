@@ -7,11 +7,11 @@ const nextConfig = {
         headers: [
           {
             key: "X-Frame-Options",
-            value: "ALLOW-FROM https://www.humansundermanagement.com",
+            value: "SAMEORIGIN",
           },
           {
             key: "Content-Security-Policy",
-            value: "frame-ancestors https://www.humansundermanagement.com https://humansundermanagement.com",
+            value: "frame-ancestors 'self' https://www.humansundermanagement.com https://humansundermanagement.com",
           },
         ],
       },
