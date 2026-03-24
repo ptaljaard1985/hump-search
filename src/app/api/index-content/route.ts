@@ -2,14 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateSummary } from "@/lib/summarise";
 import { generateEmbedding } from "@/lib/embeddings";
 import { addContentItem, getContentIndex, deleteContentItem } from "@/lib/storage";
-import { isValidPassword } from "@/lib/auth";
 import { ContentType } from "@/lib/types";
 import crypto from "crypto";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { password, title, url, type, content, summary: providedSummary, mediaType, replaceId } = body as {
-    password: string;
+  const { title, url, type, content, summary: providedSummary, mediaType, replaceId } = body as {
     title: string;
     url: string;
     type: ContentType;
@@ -18,10 +16,6 @@ export async function POST(request: NextRequest) {
     mediaType?: string;
     replaceId?: string;
   };
-
-  if (!isValidPassword(password)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
 
   if (!title || !url || !type || !content) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });

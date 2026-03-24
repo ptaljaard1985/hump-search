@@ -22,9 +22,6 @@ interface IndexedItem {
 }
 
 export default function AdminPage() {
-  const [password, setPassword] = useState("");
-  const [authenticated, setAuthenticated] = useState(false);
-
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
   const [contentType, setContentType] = useState<ContentType>("article");
@@ -53,29 +50,16 @@ export default function AdminPage() {
     filterType === "all" ? items : items.filter((item) => item.type === filterType);
 
   const loadItems = useCallback(async () => {
-    const res = await fetch("/api/content", {
-      headers: { "x-admin-password": password },
-    });
+    const res = await fetch("/api/content");
     if (res.ok) {
       const data = await res.json();
       setItems(data.items);
     }
-  }, [password]);
+  }, []);
 
   useEffect(() => {
-    if (authenticated) loadItems();
-  }, [authenticated, loadItems]);
-
-  const handleLogin = async () => {
-    const res = await fetch("/api/content", {
-      headers: { "x-admin-password": password },
-    });
-    if (res.ok) {
-      setAuthenticated(true);
-    } else {
-      setStatus("Invalid password");
-    }
-  };
+    loadItems();
+  }, [loadItems]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -104,7 +88,7 @@ export default function AdminPage() {
       const res = await fetch("/api/generate-summary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password, title, type: contentType, content, mediaType: fileMediaType }),
+        body: JSON.stringify({ title, type: contentType, content, mediaType: fileMediaType }),
       });
 
       if (!res.ok) throw new Error("Failed to generate summary");
@@ -130,7 +114,7 @@ export default function AdminPage() {
       const res = await fetch("/api/index-content", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password, title, url, type: contentType, content, summary, mediaType: fileMediaType, replaceId }),
+        body: JSON.stringify({ title, url, type: contentType, content, summary, mediaType: fileMediaType, replaceId }),
       });
 
       if (res.status === 409) {
@@ -183,7 +167,7 @@ export default function AdminPage() {
     const res = await fetch("/api/content", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password, id }),
+      body: JSON.stringify({ id }),
     });
 
     if (res.ok) {
@@ -191,31 +175,6 @@ export default function AdminPage() {
       setStatus("Item deleted.");
     }
   };
-
-  if (!authenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="bg-white p-8 rounded-lg shadow-md w-full max-w-sm">
-          <h1 className="text-xl font-semibold mb-4">HUM Content Admin</h1>
-          <input
-            type="password"
-            placeholder="Enter admin password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-            className="w-full p-2 border rounded mb-3 text-sm"
-          />
-          <button
-            onClick={handleLogin}
-            className="w-full bg-black text-white py-2 rounded text-sm hover:bg-gray-800"
-          >
-            Login
-          </button>
-          {status && <p className="mt-3 text-red-600 text-sm">{status}</p>}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">

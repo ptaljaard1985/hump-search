@@ -1,21 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateSummary } from "@/lib/summarise";
-import { isValidPassword } from "@/lib/auth";
 import { ContentType } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { password, title, type, content, mediaType } = body as {
-    password: string;
+  const { title, type, content, mediaType } = body as {
     title: string;
     type: ContentType;
     content: string;
     mediaType?: string;
   };
-
-  if (!isValidPassword(password)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
 
   if (!title || !type || !content) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });

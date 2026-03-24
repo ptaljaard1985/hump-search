@@ -1,17 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getContentIndex, deleteContentItem, updateContentItem } from "@/lib/storage";
 import { generateEmbedding } from "@/lib/embeddings";
-import { isValidPassword } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: NextRequest) {
-  const password = request.headers.get("x-admin-password") || "";
-
-  if (!isValidPassword(password)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+export async function GET() {
   const index = await getContentIndex();
   // Return items without embeddings for the admin view
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -21,11 +14,7 @@ export async function GET(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   const body = await request.json();
-  const { password, id } = body as { password: string; id: string };
-
-  if (!isValidPassword(password)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { id } = body as { id: string };
 
   await deleteContentItem(id);
   return NextResponse.json({ success: true });
@@ -33,17 +22,12 @@ export async function DELETE(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   const body = await request.json();
-  const { password, id, title, url, summary } = body as {
-    password: string;
+  const { id, title, url, summary } = body as {
     id: string;
     title?: string;
     url?: string;
     summary?: string;
   };
-
-  if (!isValidPassword(password)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
 
   const updates: Record<string, string | number[]> = {};
   if (title) updates.title = title;
