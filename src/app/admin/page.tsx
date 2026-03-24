@@ -39,6 +39,11 @@ export default function AdminPage() {
   const [status, setStatus] = useState("");
   const [items, setItems] = useState<IndexedItem[]>([]);
 
+  const [duplicateModal, setDuplicateModal] = useState<{
+    message: string;
+    existingItem: { id: string; title: string; url: string; type: string };
+  } | null>(null);
+
   const [filterType, setFilterType] = useState<ContentType | "all">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -115,9 +120,9 @@ export default function AdminPage() {
     }
   };
 
-  const handleSaveAndIndex = async () => {
+  const saveAndIndex = async (replaceId?: string) => {
     setLoading(true);
-    setStatus("Saving and indexing...");
+    setStatus(replaceId ? "Replacing and indexing..." : "Saving and indexing...");
 
     const content = selectedType.inputMode === "file" ? fileContent : textContent;
 
@@ -125,8 +130,16 @@ export default function AdminPage() {
       const res = await fetch("/api/index-content", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password, title, url, type: contentType, content, summary, mediaType: fileMediaType }),
+        body: JSON.stringify({ password, title, url, type: contentType, content, summary, mediaType: fileMediaType, replaceId }),
       });
+
+      if (res.status === 409) {
+        const data = await res.json();
+        setDuplicateModal({ message: data.message, existingItem: data.existingItem });
+        setLoading(false);
+        setStatus("");
+        return;
+      }
 
       if (!res.ok) {
         const data = await res.json().catch(() => null);
@@ -134,11 +147,13 @@ export default function AdminPage() {
       }
 
       const data = await res.json();
-      // Add the new item to local state immediately instead of re-fetching
-      if (data.item) {
+      if (replaceId) {
+        // Remove old item and add new one in local state
+        setItems((prev) => [...prev.filter((i) => i.id !== replaceId), data.item]);
+      } else if (data.item) {
         setItems((prev) => [...prev, data.item]);
       }
-      setStatus("Content indexed successfully!");
+      setStatus(replaceId ? "Content replaced successfully!" : "Content indexed successfully!");
       setTitle("");
       setUrl("");
       setTextContent("");
@@ -151,6 +166,15 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSaveAndIndex = () => saveAndIndex();
+
+  const handleReplaceDuplicate = () => {
+    if (!duplicateModal) return;
+    const replaceId = duplicateModal.existingItem.id;
+    setDuplicateModal(null);
+    saveAndIndex(replaceId);
   };
 
   const handleDelete = async (id: string) => {
@@ -419,6 +443,40 @@ export default function AdminPage() {
             </div>
           )}
         </div>
+
+        {/* Duplicate Detection Modal */}
+        {duplicateModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+              <h3 className="text-lg font-semibold text-red-600 mb-3">Duplicate Found</h3>
+              <p className="text-sm text-gray-700 mb-4">{duplicateModal.message}</p>
+              <div className="bg-gray-50 rounded p-3 mb-4 text-sm">
+                <p className="font-medium">{duplicateModal.existingItem.title}</p>
+                <p className="text-xs text-gray-500 mt-1">{duplicateModal.existingItem.url}</p>
+                <span className="text-xs bg-gray-200 px-2 py-0.5 rounded mt-1 inline-block">
+                  {duplicateModal.existingItem.type}
+                </span>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => {
+                    setDuplicateModal(null);
+                    setStatus("Indexing cancelled.");
+                  }}
+                  className="px-4 py-2 text-sm border rounded hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleReplaceDuplicate}
+                  className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700"
+                >
+                  Replace Existing
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
