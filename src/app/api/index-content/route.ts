@@ -24,12 +24,13 @@ export async function POST(request: NextRequest) {
   try {
     // Check for duplicates (skip if replacing)
     if (!replaceId) {
+      const normalise = (s: string) => s.trim().toLowerCase().replace(/\/+$/, "");
       const index = await getContentIndex();
       const titleMatch = index.items.find(
-        (item) => item.title.toLowerCase() === title.toLowerCase()
+        (item) => normalise(item.title) === normalise(title)
       );
       const urlMatch = index.items.find(
-        (item) => item.url.toLowerCase() === url.toLowerCase()
+        (item) => normalise(item.url) === normalise(url)
       );
 
       if (titleMatch || urlMatch) {
