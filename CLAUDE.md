@@ -94,6 +94,7 @@ BLOB_READ_WRITE_TOKEN=  # Vercel Blob access (auto-set by Vercel)
 - **Manual backup:** Admin UI has a "Download Backup" button (hits `/api/backup`) to export the full index including embeddings.
 - **Vercel Blob config:** Always use `addRandomSuffix: false` + `allowOverwrite: true` for the main index blob. Never use `addRandomSuffix: true` — it changes the filename so `list({ prefix })` can't find it.
 - **No silent error swallowing:** `getContentIndex` must throw on fetch failures, never silently return `{ items: [] }`. Only return empty when zero blobs exist (genuinely empty index).
+- **Duplicate detection:** `index-content` normalises titles and URLs (trim, lowercase, strip trailing slashes) before comparing. This prevents near-duplicates from bypassing the check.
 
 ## Conventions
 
