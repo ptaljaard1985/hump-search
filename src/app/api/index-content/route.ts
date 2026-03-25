@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateSummary } from "@/lib/summarise";
 import { generateEmbedding } from "@/lib/embeddings";
-import { addContentItem, getContentIndex, deleteContentItem } from "@/lib/storage";
+import { addContentItem, getContentIndex, replaceContentItem } from "@/lib/storage";
 import { ContentType } from "@/lib/types";
 import crypto from "crypto";
 
@@ -52,15 +52,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // If replacing, delete the old item first
-    if (replaceId) {
-      await deleteContentItem(replaceId);
-    }
-
-    // Generate summary if not provided (or use the edited one)
+    // Build the complete item BEFORE touching the index
     const summary = providedSummary || (await generateSummary(content, type, title, mediaType));
-
-    // Generate embedding from the summary
     const embedding = await generateEmbedding(summary);
 
     const item = {
@@ -74,7 +67,12 @@ export async function POST(request: NextRequest) {
       updated_at: new Date().toISOString(),
     };
 
-    await addContentItem(item);
+    // Single read-modify-write: replace or add
+    if (replaceId) {
+      await replaceContentItem(replaceId, item);
+    } else {
+      await addContentItem(item);
+    }
 
     return NextResponse.json({ success: true, item: { ...item, embedding: undefined } });
   } catch (err) {

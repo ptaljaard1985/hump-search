@@ -15,7 +15,7 @@ AI-powered semantic search tool for HUM Premium members to find content from a 6
 
 - **Framework:** Next.js 14 (App Router)
 - **Hosting:** Vercel (free tier)
-- **Storage:** Vercel Blob (content index JSON)
+- **Storage:** Vercel Blob (content index JSON, with auto-backup)
 - **Embeddings:** OpenAI `text-embedding-3-small`
 - **LLM:** Claude Sonnet (search + summaries), Claude Opus (infographic summaries only)
 - **Language:** TypeScript
@@ -59,12 +59,13 @@ src/
       generate-summary/ # Generate summary only (preview before saving)
       search/           # Semantic search + Claude recommendation
       content/          # CRUD operations on indexed content
+      backup/           # Download full index as JSON backup file
   lib/
     types.ts       # ContentItem, SearchResult types
     embeddings.ts  # OpenAI embedding generation + cosine similarity
     summarise.ts   # Claude summary generation with system prompt
     search.ts      # Claude recommendation from search candidates
-    storage.ts     # Vercel Blob read/write operations
+    storage.ts     # Vercel Blob read/write with auto-backup
     auth.ts        # Simple password check
 public/
   widget.js        # Embeddable widget (not currently in use)
@@ -85,6 +86,15 @@ BLOB_READ_WRITE_TOKEN=  # Vercel Blob access (auto-set by Vercel)
 - `npm run build` — production build
 - `npm run lint` — lint check
 
+## Storage Safety Rules
+
+- **Single read-modify-write:** Every index mutation (add, replace, update, delete) must read the index, modify it in memory, and save once. Never do two separate read-modify-write cycles for one logical operation.
+- **Build before write:** When indexing content, generate the summary and embedding before touching the index. If generation fails, the index stays untouched.
+- **Auto-backup:** `saveContentIndex` backs up the *current* blob state before overwriting. Keeps the last 5 backups in `backups/content-index-*.json`.
+- **Manual backup:** Admin UI has a "Download Backup" button (hits `/api/backup`) to export the full index including embeddings.
+- **Vercel Blob config:** Always use `addRandomSuffix: false` + `allowOverwrite: true` for the main index blob. Never use `addRandomSuffix: true` — it changes the filename so `list({ prefix })` can't find it.
+- **No silent error swallowing:** `getContentIndex` must throw on fetch failures, never silently return `{ items: [] }`. Only return empty when zero blobs exist (genuinely empty index).
+
 ## Conventions
 
 - Keep it simple — minimal dependencies, no over-engineering
@@ -92,7 +102,9 @@ BLOB_READ_WRITE_TOKEN=  # Vercel Blob access (auto-set by Vercel)
 - API routes handle all LLM and embedding calls server-side
 - No client-side exposure of API keys
 - API clients initialised lazily (not at module level) to avoid build errors
+- All API routes must have try/catch with meaningful error responses
 
 ## Known Issues
 
 - Squarespace embedding not working — multiple approaches failed (iframe blocked by Vercel X-Frame-Options, inline JS mangled by Squarespace smart quotes, external scripts not executed in code blocks). Current workaround: button link to standalone search page.
+- Admin password protection temporarily removed (see commit 4ec50bd)
