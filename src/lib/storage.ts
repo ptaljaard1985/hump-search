@@ -1,4 +1,4 @@
-import { put, list, del } from "@vercel/blob";
+import { put, list } from "@vercel/blob";
 import { ContentIndex, ContentItem } from "./types";
 
 const BLOB_FILENAME = "content-index.json";
@@ -8,31 +8,19 @@ export async function getContentIndex(): Promise<ContentIndex> {
   if (blobs.length === 0) {
     return { items: [] };
   }
-  // Pick the most recently uploaded blob to avoid reading stale data
-  const latest = blobs.sort(
-    (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
-  )[0];
-  const response = await fetch(latest.url + "?t=" + Date.now(), {
+  const response = await fetch(blobs[0].url + "?t=" + Date.now(), {
     cache: "no-store",
   });
   return (await response.json()) as ContentIndex;
 }
 
 export async function saveContentIndex(index: ContentIndex): Promise<void> {
-  // Collect old blobs before writing
-  const { blobs: oldBlobs } = await list({ prefix: BLOB_FILENAME });
-
-  // Write new blob first so there's always a valid blob available
   await put(BLOB_FILENAME, JSON.stringify(index), {
     access: "public",
     contentType: "application/json",
-    addRandomSuffix: true,
+    addRandomSuffix: false,
+    allowOverwrite: true,
   });
-
-  // Then delete old blobs
-  for (const blob of oldBlobs) {
-    await del(blob.url);
-  }
 }
 
 export async function addContentItem(item: ContentItem): Promise<void> {
