@@ -1,7 +1,9 @@
-import { put, list } from "@vercel/blob";
+import { put, list, del } from "@vercel/blob";
 import { ContentIndex, ContentItem } from "./types";
 
 const BLOB_FILENAME = "content-index.json";
+const BACKUP_PREFIX = "backups/content-index-";
+const MAX_BACKUPS = 5;
 
 export async function getContentIndex(): Promise<ContentIndex> {
   const { blobs } = await list({ prefix: BLOB_FILENAME });
@@ -15,7 +17,28 @@ export async function getContentIndex(): Promise<ContentIndex> {
 }
 
 export async function saveContentIndex(index: ContentIndex): Promise<void> {
-  await put(BLOB_FILENAME, JSON.stringify(index), {
+  const data = JSON.stringify(index);
+
+  // Auto-backup before saving (only if there are items to protect)
+  if (index.items.length > 0) {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    await put(`${BACKUP_PREFIX}${timestamp}.json`, data, {
+      access: "public",
+      contentType: "application/json",
+      addRandomSuffix: false,
+    });
+
+    // Prune old backups, keep only the most recent
+    const { blobs: backups } = await list({ prefix: BACKUP_PREFIX });
+    const sorted = backups.sort(
+      (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+    );
+    for (const old of sorted.slice(MAX_BACKUPS)) {
+      await del(old.url);
+    }
+  }
+
+  await put(BLOB_FILENAME, data, {
     access: "public",
     contentType: "application/json",
     addRandomSuffix: false,

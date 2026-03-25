@@ -302,6 +302,15 @@ export default function AdminPage() {
             <h2 className="text-lg font-medium">
               Indexed Content ({filteredItems.length}{filterType !== "all" ? ` of ${items.length}` : ""} items)
             </h2>
+            {items.length > 0 && (
+              <a
+                href="/api/backup"
+                download
+                className="text-xs border px-3 py-1 rounded hover:bg-gray-50"
+              >
+                Download Backup
+              </a>
+            )}
           </div>
 
           {/* Type filter tabs */}
