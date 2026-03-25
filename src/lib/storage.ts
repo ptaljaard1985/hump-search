@@ -26,6 +26,7 @@ export async function saveContentIndex(index: ContentIndex): Promise<void> {
   await put(BLOB_FILENAME, JSON.stringify(index), {
     access: "public",
     contentType: "application/json",
+    addRandomSuffix: true,
   });
 
   // Then delete old blobs
