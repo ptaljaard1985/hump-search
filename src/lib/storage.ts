@@ -1,13 +1,19 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { ContentIndex, ContentItem } from "./types";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _supabase: SupabaseClient<any, "public", any> | null = null;
+
 function getSupabase() {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) {
-    throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+  if (!_supabase) {
+    const url = process.env.SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!url || !key) {
+      throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+    }
+    _supabase = createClient(url, key);
   }
-  return createClient(url, key);
+  return _supabase;
 }
 
 export async function getContentIndex(): Promise<ContentIndex> {
@@ -21,12 +27,18 @@ export async function getContentIndex(): Promise<ContentIndex> {
   }
 
   // Convert pgvector string format "[0.1,0.2,...]" to number[] if needed
-  const items: ContentItem[] = (data || []).map((row) => ({
-    ...row,
+  const items: ContentItem[] = (data || []).map((row: Record<string, unknown>) => ({
+    id: row.id as string,
+    title: row.title as string,
+    url: row.url as string,
+    type: row.type as ContentItem["type"],
+    summary: row.summary as string,
     embedding:
       typeof row.embedding === "string"
         ? JSON.parse(row.embedding)
-        : row.embedding,
+        : row.embedding as number[],
+    created_at: row.created_at as string,
+    updated_at: row.updated_at as string,
   }));
 
   return { items };
@@ -56,7 +68,7 @@ export async function checkDuplicate(
   const { data, error } = await supabase
     .from("content_items")
     .select("id, title, url, type")
-    .or(`title.ilike.${normTitle},url.ilike.${normUrl}`);
+    .or(`title.ilike."${normTitle}",url.ilike."${normUrl}"`);
 
   if (error) {
     throw new Error(`Failed to check duplicates: ${error.message}`);
@@ -65,8 +77,9 @@ export async function checkDuplicate(
   if (!data || data.length === 0) return null;
 
   // Check which field matched
-  const titleMatch = data.find((d) => d.title.trim().toLowerCase() === normTitle);
-  const urlMatch = data.find(
+  const rows = data as { id: string; title: string; url: string; type: string }[];
+  const titleMatch = rows.find((d) => d.title.trim().toLowerCase() === normTitle);
+  const urlMatch = rows.find(
     (d) => d.url.trim().toLowerCase().replace(/\/+$/, "") === normUrl
   );
 
@@ -99,6 +112,9 @@ export async function addContentItem(item: ContentItem): Promise<void> {
 export async function replaceContentItem(oldId: string, item: ContentItem): Promise<void> {
   const supabase = getSupabase();
 
+  // Insert new item first so the old one survives if insert fails
+  await addContentItem(item);
+
   const { error: deleteError } = await supabase
     .from("content_items")
     .delete()
@@ -107,8 +123,6 @@ export async function replaceContentItem(oldId: string, item: ContentItem): Prom
   if (deleteError) {
     throw new Error(`Failed to delete old item: ${deleteError.message}`);
   }
-
-  await addContentItem(item);
 }
 
 export async function updateContentItem(
@@ -123,30 +137,32 @@ export async function updateContentItem(
   if (updates.summary !== undefined) row.summary = updates.summary;
   if (updates.embedding !== undefined) row.embedding = JSON.stringify(updates.embedding);
 
-  const { error, count } = await supabase
+  const { data, error } = await supabase
     .from("content_items")
     .update(row)
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
 
   if (error) {
     throw new Error(`Failed to update content item: ${error.message}`);
   }
-  if (count === 0) {
+  if (!data || data.length === 0) {
     throw new Error("Content item not found");
   }
 }
 
 export async function deleteContentItem(id: string): Promise<void> {
   const supabase = getSupabase();
-  const { error, count } = await supabase
+  const { data, error } = await supabase
     .from("content_items")
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
 
   if (error) {
     throw new Error(`Failed to delete content item: ${error.message}`);
   }
-  if (count === 0) {
+  if (!data || data.length === 0) {
     throw new Error("Content item not found");
   }
 }
