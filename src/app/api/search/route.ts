@@ -27,37 +27,43 @@ export async function OPTIONS(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const origin = request.headers.get("origin");
-  const body = await request.json();
-  const { query } = body as { query: string };
+  try {
+    const body = await request.json();
+    const { query } = body as { query: string };
 
-  if (!query || query.trim().length === 0) {
-    return NextResponse.json({ error: "Query is required" }, { status: 400, headers: corsHeaders(origin) });
-  }
+    if (!query || query.trim().length === 0) {
+      return NextResponse.json({ error: "Query is required" }, { status: 400, headers: corsHeaders(origin) });
+    }
 
-  const index = await getContentIndex();
+    const index = await getContentIndex();
 
-  if (index.items.length === 0) {
+    if (index.items.length === 0) {
+      return NextResponse.json(
+        { recommendation: "The content library is empty. Please index some content first." },
+        { headers: corsHeaders(origin) }
+      );
+    }
+
+    // Stage 1: Vector search — find top 10 candidates
+    const queryEmbedding = await generateEmbedding(query);
+    const candidates = findSimilarContent(queryEmbedding, index.items, 10);
+
+    // Stage 2: Claude recommendation from candidates
+    const recommendation = await getRecommendations(query, candidates);
+
+    // Verify URLs — strip any that aren't in our index
+    const validUrls = new Set(index.items.map((item) => item.url));
+    const urlPattern = /https?:\/\/[^\s)]+/g;
+    const mentionedUrls = recommendation.match(urlPattern) || [];
+    const hasInvalidUrl = mentionedUrls.some((url) => !validUrls.has(url));
+
     return NextResponse.json(
-      { recommendation: "The content library is empty. Please index some content first." },
+      { recommendation, hasInvalidUrl, candidateCount: candidates.length },
       { headers: corsHeaders(origin) }
     );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("Search error:", message);
+    return NextResponse.json({ error: message }, { status: 500, headers: corsHeaders(origin) });
   }
-
-  // Stage 1: Vector search — find top 10 candidates
-  const queryEmbedding = await generateEmbedding(query);
-  const candidates = findSimilarContent(queryEmbedding, index.items, 10);
-
-  // Stage 2: Claude recommendation from candidates
-  const recommendation = await getRecommendations(query, candidates);
-
-  // Verify URLs — strip any that aren't in our index
-  const validUrls = new Set(index.items.map((item) => item.url));
-  const urlPattern = /https?:\/\/[^\s)]+/g;
-  const mentionedUrls = recommendation.match(urlPattern) || [];
-  const hasInvalidUrl = mentionedUrls.some((url) => !validUrls.has(url));
-
-  return NextResponse.json(
-    { recommendation, hasInvalidUrl, candidateCount: candidates.length },
-    { headers: corsHeaders(origin) }
-  );
 }

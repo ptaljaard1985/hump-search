@@ -65,19 +65,23 @@ export async function checkDuplicate(
   const normTitle = title.trim().toLowerCase();
   const normUrl = url.trim().toLowerCase().replace(/\/+$/, "");
 
-  const { data, error } = await supabase
-    .from("content_items")
-    .select("id, title, url, type")
-    .or(`title.ilike."${normTitle}",url.ilike."${normUrl}"`);
+  // Use two separate queries to avoid filter injection from special characters
+  const [titleResult, urlResult] = await Promise.all([
+    supabase.from("content_items").select("id, title, url, type").ilike("title", normTitle),
+    supabase.from("content_items").select("id, title, url, type").ilike("url", normUrl),
+  ]);
 
-  if (error) {
-    throw new Error(`Failed to check duplicates: ${error.message}`);
+  if (titleResult.error) {
+    throw new Error(`Failed to check duplicates: ${titleResult.error.message}`);
+  }
+  if (urlResult.error) {
+    throw new Error(`Failed to check duplicates: ${urlResult.error.message}`);
   }
 
-  if (!data || data.length === 0) return null;
+  const allRows = [...(titleResult.data || []), ...(urlResult.data || [])];
+  if (allRows.length === 0) return null;
 
-  // Check which field matched
-  const rows = data as { id: string; title: string; url: string; type: string }[];
+  const rows = allRows as { id: string; title: string; url: string; type: string }[];
   const titleMatch = rows.find((d) => d.title.trim().toLowerCase() === normTitle);
   const urlMatch = rows.find(
     (d) => d.url.trim().toLowerCase().replace(/\/+$/, "") === normUrl
@@ -112,9 +116,6 @@ export async function addContentItem(item: ContentItem): Promise<void> {
 export async function replaceContentItem(oldId: string, item: ContentItem): Promise<void> {
   const supabase = getSupabase();
 
-  // Insert new item first so the old one survives if insert fails
-  await addContentItem(item);
-
   const { error: deleteError } = await supabase
     .from("content_items")
     .delete()
@@ -123,6 +124,8 @@ export async function replaceContentItem(oldId: string, item: ContentItem): Prom
   if (deleteError) {
     throw new Error(`Failed to delete old item: ${deleteError.message}`);
   }
+
+  await addContentItem(item);
 }
 
 export async function updateContentItem(
