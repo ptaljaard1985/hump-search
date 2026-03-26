@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateSummary } from "@/lib/summarise";
 import { generateEmbedding } from "@/lib/embeddings";
-import { addContentItem, getContentIndex, replaceContentItem } from "@/lib/storage";
+import { addContentItem, replaceContentItem, checkDuplicate } from "@/lib/storage";
 import { ContentType } from "@/lib/types";
 import crypto from "crypto";
 
@@ -24,29 +24,14 @@ export async function POST(request: NextRequest) {
   try {
     // Check for duplicates (skip if replacing)
     if (!replaceId) {
-      const normalise = (s: string) => s.trim().toLowerCase().replace(/\/+$/, "");
-      const index = await getContentIndex();
-      const titleMatch = index.items.find(
-        (item) => normalise(item.title) === normalise(title)
-      );
-      const urlMatch = index.items.find(
-        (item) => normalise(item.url) === normalise(url)
-      );
-
-      if (titleMatch || urlMatch) {
-        const duplicate = titleMatch || urlMatch;
-        const matchType = titleMatch && urlMatch ? "title and URL" : titleMatch ? "title" : "URL";
+      const duplicate = await checkDuplicate(title, url);
+      if (duplicate) {
         return NextResponse.json(
           {
             error: "duplicate",
-            message: `An item with the same ${matchType} already exists.`,
-            matchType,
-            existingItem: {
-              id: duplicate!.id,
-              title: duplicate!.title,
-              url: duplicate!.url,
-              type: duplicate!.type,
-            },
+            message: `An item with the same ${duplicate.matchType} already exists.`,
+            matchType: duplicate.matchType,
+            existingItem: duplicate.item,
           },
           { status: 409 }
         );

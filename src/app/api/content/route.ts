@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getContentIndex, deleteContentItem, updateContentItem } from "@/lib/storage";
+import { getContentItems, deleteContentItem, updateContentItem } from "@/lib/storage";
 import { generateEmbedding } from "@/lib/embeddings";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const index = await getContentIndex();
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const items = index.items.map(({ embedding, ...rest }) => rest);
+    const items = await getContentItems();
     return NextResponse.json({ items });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

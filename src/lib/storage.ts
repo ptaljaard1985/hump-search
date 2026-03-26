@@ -1,97 +1,152 @@
-import { put, list, del } from "@vercel/blob";
+import { createClient } from "@supabase/supabase-js";
 import { ContentIndex, ContentItem } from "./types";
 
-const BLOB_FILENAME = "content-index.json";
-const BACKUP_PREFIX = "backups/content-index-";
-const MAX_BACKUPS = 5;
+function getSupabase() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+  }
+  return createClient(url, key);
+}
 
 export async function getContentIndex(): Promise<ContentIndex> {
-  const { blobs } = await list({ prefix: BLOB_FILENAME });
-  if (blobs.length === 0) {
-    return { items: [] };
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from("content_items")
+    .select("*");
+
+  if (error) {
+    throw new Error(`Failed to fetch content index: ${error.message}`);
   }
-  const response = await fetch(blobs[0].url + "?t=" + Date.now(), {
-    cache: "no-store",
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to fetch content index: ${response.status}`);
-  }
-  return (await response.json()) as ContentIndex;
+
+  // Convert pgvector string format "[0.1,0.2,...]" to number[] if needed
+  const items: ContentItem[] = (data || []).map((row) => ({
+    ...row,
+    embedding:
+      typeof row.embedding === "string"
+        ? JSON.parse(row.embedding)
+        : row.embedding,
+  }));
+
+  return { items };
 }
 
-async function backupCurrentIndex(): Promise<void> {
-  try {
-    const current = await getContentIndex();
-    if (current.items.length === 0) return;
+export async function getContentItems(): Promise<Omit<ContentItem, "embedding">[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from("content_items")
+    .select("id, title, url, type, summary, created_at, updated_at");
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    await put(`${BACKUP_PREFIX}${timestamp}.json`, JSON.stringify(current), {
-      access: "public",
-      contentType: "application/json",
-      addRandomSuffix: false,
-    });
-
-    // Prune old backups, keep only the most recent
-    const { blobs: backups } = await list({ prefix: BACKUP_PREFIX });
-    const sorted = backups.sort(
-      (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
-    );
-    for (const old of sorted.slice(MAX_BACKUPS)) {
-      await del(old.url);
-    }
-  } catch (err) {
-    // Backup failure should not prevent the save
-    console.error("Backup failed:", err);
+  if (error) {
+    throw new Error(`Failed to fetch content items: ${error.message}`);
   }
+
+  return data || [];
 }
 
-export async function saveContentIndex(index: ContentIndex): Promise<void> {
-  // Back up the CURRENT state before overwriting
-  await backupCurrentIndex();
+export async function checkDuplicate(
+  title: string,
+  url: string
+): Promise<{ matchType: string; item: { id: string; title: string; url: string; type: string } } | null> {
+  const supabase = getSupabase();
+  const normTitle = title.trim().toLowerCase();
+  const normUrl = url.trim().toLowerCase().replace(/\/+$/, "");
 
-  await put(BLOB_FILENAME, JSON.stringify(index), {
-    access: "public",
-    contentType: "application/json",
-    addRandomSuffix: false,
-    allowOverwrite: true,
-  });
+  const { data, error } = await supabase
+    .from("content_items")
+    .select("id, title, url, type")
+    .or(`title.ilike.${normTitle},url.ilike.${normUrl}`);
+
+  if (error) {
+    throw new Error(`Failed to check duplicates: ${error.message}`);
+  }
+
+  if (!data || data.length === 0) return null;
+
+  // Check which field matched
+  const titleMatch = data.find((d) => d.title.trim().toLowerCase() === normTitle);
+  const urlMatch = data.find(
+    (d) => d.url.trim().toLowerCase().replace(/\/+$/, "") === normUrl
+  );
+
+  if (!titleMatch && !urlMatch) return null;
+
+  const match = titleMatch || urlMatch;
+  const matchType = titleMatch && urlMatch ? "title and URL" : titleMatch ? "title" : "URL";
+
+  return { matchType, item: match! };
 }
 
 export async function addContentItem(item: ContentItem): Promise<void> {
-  const index = await getContentIndex();
-  index.items.push(item);
-  await saveContentIndex(index);
+  const supabase = getSupabase();
+  const { error } = await supabase.from("content_items").insert({
+    id: item.id,
+    title: item.title,
+    url: item.url,
+    type: item.type,
+    summary: item.summary,
+    embedding: JSON.stringify(item.embedding),
+    created_at: item.created_at,
+    updated_at: item.updated_at,
+  });
+
+  if (error) {
+    throw new Error(`Failed to add content item: ${error.message}`);
+  }
 }
 
 export async function replaceContentItem(oldId: string, item: ContentItem): Promise<void> {
-  const index = await getContentIndex();
-  index.items = index.items.filter((i) => i.id !== oldId);
-  index.items.push(item);
-  await saveContentIndex(index);
+  const supabase = getSupabase();
+
+  const { error: deleteError } = await supabase
+    .from("content_items")
+    .delete()
+    .eq("id", oldId);
+
+  if (deleteError) {
+    throw new Error(`Failed to delete old item: ${deleteError.message}`);
+  }
+
+  await addContentItem(item);
 }
 
 export async function updateContentItem(
   id: string,
   updates: Partial<Pick<ContentItem, "title" | "url" | "summary" | "embedding">>
 ): Promise<void> {
-  const index = await getContentIndex();
-  const itemIndex = index.items.findIndex((item) => item.id === id);
-  if (itemIndex === -1) throw new Error("Content item not found");
+  const supabase = getSupabase();
 
-  index.items[itemIndex] = {
-    ...index.items[itemIndex],
-    ...updates,
-    updated_at: new Date().toISOString(),
-  };
-  await saveContentIndex(index);
+  const row: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (updates.title !== undefined) row.title = updates.title;
+  if (updates.url !== undefined) row.url = updates.url;
+  if (updates.summary !== undefined) row.summary = updates.summary;
+  if (updates.embedding !== undefined) row.embedding = JSON.stringify(updates.embedding);
+
+  const { error, count } = await supabase
+    .from("content_items")
+    .update(row)
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(`Failed to update content item: ${error.message}`);
+  }
+  if (count === 0) {
+    throw new Error("Content item not found");
+  }
 }
 
 export async function deleteContentItem(id: string): Promise<void> {
-  const index = await getContentIndex();
-  const before = index.items.length;
-  index.items = index.items.filter((item) => item.id !== id);
-  if (index.items.length === before) {
+  const supabase = getSupabase();
+  const { error, count } = await supabase
+    .from("content_items")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(`Failed to delete content item: ${error.message}`);
+  }
+  if (count === 0) {
     throw new Error("Content item not found");
   }
-  await saveContentIndex(index);
 }
