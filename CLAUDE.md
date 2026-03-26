@@ -69,6 +69,9 @@ src/
     auth.ts        # Simple password check
 public/
   widget.js        # Embeddable widget (not currently in use)
+scripts/
+  migrate-to-supabase.ts  # One-time migration from Vercel Blob backup JSON
+  test-supabase.ts        # Connection test (insert, read, delete)
 ```
 
 ## Environment Variables
@@ -93,7 +96,7 @@ SUPABASE_SERVICE_ROLE_KEY=  # Supabase service role key (not anon)
 - **Build before write:** When indexing content, generate the summary and embedding before inserting into the database. If generation fails, the database stays untouched.
 - **Manual backup:** Admin UI has a "Download Backup" button (hits `/api/backup`) to export the full index including embeddings as JSON.
 - **No silent error swallowing:** All storage functions must throw on database errors, never silently return empty results.
-- **Duplicate detection:** `checkDuplicate` queries the database for matching titles/URLs (normalised: trim, lowercase, strip trailing slashes) before inserting.
+- **Duplicate detection:** `checkDuplicate` uses two separate `.ilike()` queries (not `.or()` with string interpolation) to safely match titles/URLs (normalised: trim, lowercase, strip trailing slashes) before inserting.
 - **Supabase project:** `zvpbqznfkbblpqdgcyef.supabase.co` — table `content_items` with pgvector `VECTOR(1536)` embedding column.
 
 ## Conventions
