@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getContentItems, deleteContentItem, updateContentItem } from "@/lib/storage";
-import { generateEmbedding } from "@/lib/embeddings";
+import { getContentItems, deleteContentItem, updateContentItem, getContentItem } from "@/lib/storage";
+import { generateEmbedding, buildEmbeddingText } from "@/lib/embeddings";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +19,9 @@ export async function DELETE(request: NextRequest) {
   try {
     const body = await request.json();
     const { id } = body as { id: string };
+    if (!id || typeof id !== "string") {
+      return NextResponse.json({ error: "Missing or invalid id" }, { status: 400 });
+    }
     await deleteContentItem(id);
     return NextResponse.json({ success: true });
   } catch (err) {
@@ -38,12 +41,24 @@ export async function PUT(request: NextRequest) {
       summary?: string;
     };
 
+    if (!id || typeof id !== "string") {
+      return NextResponse.json({ error: "Missing or invalid id" }, { status: 400 });
+    }
+
     const updates: Record<string, string | number[]> = {};
-    if (title) updates.title = title;
-    if (url) updates.url = url;
-    if (summary) {
-      updates.summary = summary;
-      updates.embedding = await generateEmbedding(summary);
+    if (title !== undefined) updates.title = title;
+    if (url !== undefined) updates.url = url;
+    if (summary !== undefined) updates.summary = summary;
+
+    // Re-embed if title or summary changed (both are part of the embedding text)
+    if (title !== undefined || summary !== undefined) {
+      const existing = await getContentItem(id);
+      if (!existing) {
+        return NextResponse.json({ error: "Content item not found" }, { status: 404 });
+      }
+      const finalTitle = title ?? existing.title;
+      const finalSummary = summary ?? existing.summary;
+      updates.embedding = await generateEmbedding(buildEmbeddingText(finalTitle, existing.type, finalSummary));
     }
 
     await updateContentItem(id, updates);

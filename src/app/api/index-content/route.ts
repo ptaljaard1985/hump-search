@@ -1,27 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateSummary } from "@/lib/summarise";
-import { generateEmbedding } from "@/lib/embeddings";
+import { generateEmbedding, buildEmbeddingText } from "@/lib/embeddings";
 import { addContentItem, replaceContentItem, checkDuplicate } from "@/lib/storage";
 import { ContentType } from "@/lib/types";
 import crypto from "crypto";
 
 export async function POST(request: NextRequest) {
-  const body = await request.json();
-  const { title, url, type, content, summary: providedSummary, mediaType, replaceId } = body as {
-    title: string;
-    url: string;
-    type: ContentType;
-    content: string;
-    summary?: string;
-    mediaType?: string;
-    replaceId?: string;
-  };
-
-  if (!title || !url || !type || !content) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
-  }
-
   try {
+    const body = await request.json();
+    const { title, url, type, content, summary: providedSummary, mediaType, replaceId } = body as {
+      title: string;
+      url: string;
+      type: ContentType;
+      content: string;
+      summary?: string;
+      mediaType?: string;
+      replaceId?: string;
+    };
+
+    if (!title || !url || !type || !content) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
     // Check for duplicates (skip if replacing)
     if (!replaceId) {
       const duplicate = await checkDuplicate(title, url);
@@ -40,7 +39,7 @@ export async function POST(request: NextRequest) {
 
     // Build the complete item BEFORE touching the index
     const summary = providedSummary || (await generateSummary(content, type, title, mediaType));
-    const embedding = await generateEmbedding(summary);
+    const embedding = await generateEmbedding(buildEmbeddingText(title, type, summary));
 
     const item = {
       id: crypto.randomUUID(),

@@ -57,6 +57,22 @@ export async function getContentItems(): Promise<Omit<ContentItem, "embedding">[
   return data || [];
 }
 
+export async function getContentItem(id: string): Promise<Omit<ContentItem, "embedding"> | null> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from("content_items")
+    .select("id, title, url, type, summary, created_at, updated_at")
+    .eq("id", id)
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") return null;
+    throw new Error(`Failed to fetch content item: ${error.message}`);
+  }
+
+  return data;
+}
+
 export async function checkDuplicate(
   title: string,
   url: string

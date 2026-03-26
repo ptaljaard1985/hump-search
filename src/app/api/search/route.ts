@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateEmbedding, findSimilarContent } from "@/lib/embeddings";
 import { getRecommendations } from "@/lib/search";
-import { getContentIndex } from "@/lib/storage";
+import { getContentItems } from "@/lib/storage";
 
 const ALLOWED_ORIGINS = [
   "https://www.humansundermanagement.com",
@@ -14,7 +13,7 @@ function corsHeaders(origin: string | null) {
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
   };
-  if (origin && ALLOWED_ORIGINS.some((o) => origin.startsWith(o))) {
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
     headers["Access-Control-Allow-Origin"] = origin;
   }
   return headers;
@@ -35,30 +34,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Query is required" }, { status: 400, headers: corsHeaders(origin) });
     }
 
-    const index = await getContentIndex();
+    const items = await getContentItems();
 
-    if (index.items.length === 0) {
+    if (items.length === 0) {
       return NextResponse.json(
         { recommendation: "The content library is empty. Please index some content first." },
         { headers: corsHeaders(origin) }
       );
     }
 
-    // Stage 1: Vector search — find top 10 candidates
-    const queryEmbedding = await generateEmbedding(query);
-    const candidates = findSimilarContent(queryEmbedding, index.items, 10);
-
-    // Stage 2: Claude recommendation from candidates
-    const recommendation = await getRecommendations(query, candidates);
+    // Send all items to Claude for recommendation
+    const recommendation = await getRecommendations(query, items);
 
     // Verify URLs — strip any that aren't in our index
-    const validUrls = new Set(index.items.map((item) => item.url));
+    const validUrls = new Set(items.map((item) => item.url));
     const urlPattern = /https?:\/\/[^\s)]+/g;
     const mentionedUrls = recommendation.match(urlPattern) || [];
     const hasInvalidUrl = mentionedUrls.some((url) => !validUrls.has(url));
 
     return NextResponse.json(
-      { recommendation, hasInvalidUrl, candidateCount: candidates.length },
+      { recommendation, hasInvalidUrl, itemCount: items.length },
       { headers: corsHeaders(origin) }
     );
   } catch (err) {

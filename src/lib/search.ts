@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { SearchResult } from "./types";
+import { ContentItem } from "./types";
 
 function getAnthropic() {
   return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -33,18 +33,18 @@ RULES:
 
 export async function getRecommendations(
   query: string,
-  candidates: SearchResult[]
+  items: Omit<ContentItem, "embedding">[]
 ): Promise<string> {
-  const contentList = candidates
+  const contentList = items
     .map(
-      (c, i) =>
-        `${i + 1}. Title: ${c.item.title}\n   Type: ${c.item.type}\n   URL: ${c.item.url}\n   Summary: ${c.item.summary}`
+      (item, i) =>
+        `${i + 1}. Title: ${item.title}\n   Type: ${item.type}\n   URL: ${item.url}\n   Summary: ${item.summary}`
     )
     .join("\n\n");
 
   const response = await getAnthropic().messages.create({
     model: "claude-sonnet-4-20250514",
-    max_tokens: 800,
+    max_tokens: 1200,
     temperature: 0,
     system: SEARCH_SYSTEM_PROMPT,
     messages: [

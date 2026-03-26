@@ -1,8 +1,18 @@
 import OpenAI from "openai";
-import { ContentItem, SearchResult } from "./types";
+import { ContentItem, ContentType, SearchResult } from "./types";
+
+let _openai: OpenAI | null = null;
 
 function getOpenAI() {
-  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  if (!_openai) {
+    _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return _openai;
+}
+
+export function buildEmbeddingText(title: string, type: ContentType, summary: string): string {
+  const typeLabel = type.replace("-", " ");
+  return `${title}\n${typeLabel}\n\n${summary}`;
 }
 
 export async function generateEmbedding(text: string): Promise<number[]> {
@@ -22,13 +32,16 @@ function cosineSimilarity(a: number[], b: number[]): number {
     normA += a[i] * a[i];
     normB += b[i] * b[i];
   }
-  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+  const denom = Math.sqrt(normA) * Math.sqrt(normB);
+  if (denom === 0) return 0;
+  return dotProduct / denom;
 }
 
 export function findSimilarContent(
   queryEmbedding: number[],
   items: ContentItem[],
-  topK: number = 10
+  topK: number = 6,
+  minSimilarity: number = 0.25
 ): SearchResult[] {
   const results: SearchResult[] = items.map((item) => ({
     item,
@@ -36,5 +49,5 @@ export function findSimilarContent(
   }));
 
   results.sort((a, b) => b.similarity - a.similarity);
-  return results.slice(0, topK);
+  return results.filter((r) => r.similarity >= minSimilarity).slice(0, topK);
 }
