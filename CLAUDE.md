@@ -15,7 +15,7 @@ AI-powered semantic search tool for HUM Premium members to find content from a 6
 
 - **Framework:** Next.js 14 (App Router)
 - **Hosting:** Vercel (free tier)
-- **Storage:** Vercel Blob (content index JSON, with auto-backup)
+- **Storage:** Supabase Postgres (with pgvector for embeddings)
 - **Embeddings:** OpenAI `text-embedding-3-small`
 - **LLM:** Claude Sonnet (search + summaries), Claude Opus (infographic summaries only)
 - **Language:** TypeScript
@@ -65,7 +65,7 @@ src/
     embeddings.ts  # OpenAI embedding generation + cosine similarity
     summarise.ts   # Claude summary generation with system prompt
     search.ts      # Claude recommendation from search candidates
-    storage.ts     # Vercel Blob read/write with auto-backup
+    storage.ts     # Supabase Postgres read/write
     auth.ts        # Simple password check
 public/
   widget.js        # Embeddable widget (not currently in use)
@@ -77,7 +77,8 @@ public/
 OPENAI_API_KEY=         # For embeddings only
 ANTHROPIC_API_KEY=      # For summary generation + member search
 ADMIN_PASSWORD=         # Simple password protection for admin
-BLOB_READ_WRITE_TOKEN=  # Vercel Blob access (auto-set by Vercel)
+SUPABASE_URL=           # Supabase project URL
+SUPABASE_SERVICE_ROLE_KEY=  # Supabase service role key (not anon)
 ```
 
 ## Commands
@@ -88,13 +89,12 @@ BLOB_READ_WRITE_TOKEN=  # Vercel Blob access (auto-set by Vercel)
 
 ## Storage Safety Rules
 
-- **Single read-modify-write:** Every index mutation (add, replace, update, delete) must read the index, modify it in memory, and save once. Never do two separate read-modify-write cycles for one logical operation.
-- **Build before write:** When indexing content, generate the summary and embedding before touching the index. If generation fails, the index stays untouched.
-- **Auto-backup:** `saveContentIndex` backs up the *current* blob state before overwriting. Keeps the last 5 backups in `backups/content-index-*.json`.
-- **Manual backup:** Admin UI has a "Download Backup" button (hits `/api/backup`) to export the full index including embeddings.
-- **Vercel Blob config:** Always use `addRandomSuffix: false` + `allowOverwrite: true` for the main index blob. Never use `addRandomSuffix: true` — it changes the filename so `list({ prefix })` can't find it.
-- **No silent error swallowing:** `getContentIndex` must throw on fetch failures, never silently return `{ items: [] }`. Only return empty when zero blobs exist (genuinely empty index).
-- **Duplicate detection:** `index-content` normalises titles and URLs (trim, lowercase, strip trailing slashes) before comparing. This prevents near-duplicates from bypassing the check.
+- **Atomic row operations:** Each add, update, and delete is a single database operation — no read-modify-write cycles.
+- **Build before write:** When indexing content, generate the summary and embedding before inserting into the database. If generation fails, the database stays untouched.
+- **Manual backup:** Admin UI has a "Download Backup" button (hits `/api/backup`) to export the full index including embeddings as JSON.
+- **No silent error swallowing:** All storage functions must throw on database errors, never silently return empty results.
+- **Duplicate detection:** `checkDuplicate` queries the database for matching titles/URLs (normalised: trim, lowercase, strip trailing slashes) before inserting.
+- **Supabase project:** `zvpbqznfkbblpqdgcyef.supabase.co` — table `content_items` with pgvector `VECTOR(1536)` embedding column.
 
 ## Conventions
 
