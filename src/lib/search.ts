@@ -34,7 +34,7 @@ RULES:
 - Use the exact titles and URLs as provided — do not modify them.
 - The title MUST be a markdown link: [Title](URL)
 - Keep explanations brief — two sentences maximum per item.
-- Do not add a preamble or introduction. Start directly with the first group heading.
+- Start with a short, friendly one-sentence preamble that reflects on what the member is looking for (e.g. "Here's what we have on managing client anxiety during market downturns."). Then move into the grouped results.
 - Do not add a closing paragraph or summary.
 - Only include group headings that contain at least one recommendation.
 - Always use UK English spelling (e.g. behaviour, organise, colour, favour, practise, capitalise).
