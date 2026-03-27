@@ -5,11 +5,10 @@ import { ContentType } from "@/lib/types";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, type, content, mediaType } = body as {
+    const { title, type, content } = body as {
       title: string;
       type: ContentType;
       content: string;
-      mediaType?: string;
     };
 
     if (!title || !type || !content) {

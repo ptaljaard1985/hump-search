@@ -8,13 +8,12 @@ import crypto from "crypto";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, url, type, content, summary: providedSummary, mediaType, replaceId } = body as {
+    const { title, url, type, content, summary: providedSummary, replaceId } = body as {
       title: string;
       url: string;
       type: ContentType;
       content: string;
       summary?: string;
-      mediaType?: string;
       replaceId?: string;
     };
 
