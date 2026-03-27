@@ -7,7 +7,7 @@ const CONTENT_TYPES: { value: ContentType; label: string; inputMode: "text" | "f
   { value: "article", label: "Client Article", inputMode: "text" },
   { value: "advisor-doc", label: "Adviser Document", inputMode: "text" },
   { value: "infographic", label: "Infographic", inputMode: "file" },
-  { value: "pdf-guide", label: "PDF Guide", inputMode: "file" },
+  { value: "pdf-guide", label: "PDF Guide", inputMode: "text" },
   { value: "video", label: "Video", inputMode: "text" },
   { value: "email-sequence", label: "Email Sequence", inputMode: "text" },
 ];
@@ -91,9 +91,8 @@ export default function AdminPage() {
         body: JSON.stringify({ title, type: contentType, content, mediaType: fileMediaType }),
       });
 
-      if (!res.ok) throw new Error("Failed to generate summary");
-
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to generate summary");
       setSummary(data.summary);
       setSummaryGenerated(true);
       setStatus("Summary generated — review and edit if needed, then save.");
@@ -230,14 +229,24 @@ export default function AdminPage() {
             {selectedType.inputMode === "text" ? (
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Paste Content
+                  {contentType === "pdf-guide" ? "PDF URL" : "Paste Content"}
                 </label>
-                <textarea
-                  value={textContent}
-                  onChange={(e) => setTextContent(e.target.value)}
-                  className="w-full p-2 border rounded text-sm h-48"
-                  placeholder="Paste the full content here..."
-                />
+                {contentType === "pdf-guide" ? (
+                  <input
+                    type="url"
+                    value={textContent}
+                    onChange={(e) => setTextContent(e.target.value)}
+                    className="w-full p-2 border rounded text-sm"
+                    placeholder="https://example.com/guide.pdf"
+                  />
+                ) : (
+                  <textarea
+                    value={textContent}
+                    onChange={(e) => setTextContent(e.target.value)}
+                    className="w-full p-2 border rounded text-sm h-48"
+                    placeholder="Paste the full content here..."
+                  />
+                )}
               </div>
             ) : (
               <div>

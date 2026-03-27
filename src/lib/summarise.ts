@@ -50,7 +50,7 @@ export async function generateSummary(
     ];
   } else if (isPdf) {
     messageContent = [
-      { type: "document", source: { type: "base64", media_type: "application/pdf", data: content } },
+      { type: "document", source: { type: "url", url: content } },
       { type: "text", text: userMessage },
     ];
   } else {
