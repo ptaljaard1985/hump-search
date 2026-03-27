@@ -6,7 +6,7 @@ import { ContentType } from "@/lib/types";
 const CONTENT_TYPES: { value: ContentType; label: string; inputMode: "text" | "file" }[] = [
   { value: "article", label: "Client Article", inputMode: "text" },
   { value: "advisor-doc", label: "Adviser Document", inputMode: "text" },
-  { value: "infographic", label: "Infographic", inputMode: "file" },
+  { value: "infographic", label: "Infographic", inputMode: "text" },
   { value: "pdf-guide", label: "PDF Guide", inputMode: "text" },
   { value: "video", label: "Video", inputMode: "text" },
   { value: "email-sequence", label: "Email Sequence", inputMode: "text" },
@@ -229,15 +229,15 @@ export default function AdminPage() {
             {selectedType.inputMode === "text" ? (
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  {contentType === "pdf-guide" ? "PDF URL" : "Paste Content"}
+                  {contentType === "pdf-guide" ? "PDF URL" : contentType === "infographic" ? "Image URL" : "Paste Content"}
                 </label>
-                {contentType === "pdf-guide" ? (
+                {contentType === "pdf-guide" || contentType === "infographic" ? (
                   <input
                     type="url"
                     value={textContent}
                     onChange={(e) => setTextContent(e.target.value)}
                     className="w-full p-2 border rounded text-sm"
-                    placeholder="https://example.com/guide.pdf"
+                    placeholder={contentType === "pdf-guide" ? "https://example.com/guide.pdf" : "https://example.com/infographic.png"}
                   />
                 ) : (
                   <textarea

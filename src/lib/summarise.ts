@@ -43,9 +43,8 @@ export async function generateSummary(
   let messageContent: Anthropic.MessageCreateParams["messages"][0]["content"];
 
   if (isInfographic) {
-    const imageMediaType = (mediaType || "image/png") as "image/png" | "image/jpeg" | "image/gif" | "image/webp";
     messageContent = [
-      { type: "image", source: { type: "base64", media_type: imageMediaType, data: content } },
+      { type: "image", source: { type: "url", url: content } },
       { type: "text", text: userMessage },
     ];
   } else if (isPdf) {
