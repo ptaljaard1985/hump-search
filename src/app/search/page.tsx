@@ -3,6 +3,19 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 
+const GROUP_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  "Client Articles": { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
+  "Adviser Documents": { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200" },
+  "Infographics": { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" },
+  "PDF Guides": { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
+  "Videos": { bg: "bg-rose-50", text: "text-rose-700", border: "border-rose-200" },
+  "Email Sequences": { bg: "bg-cyan-50", text: "text-cyan-700", border: "border-cyan-200" },
+};
+
+function getGroupColor(text: string) {
+  return GROUP_COLORS[text] || { bg: "bg-gray-50", text: "text-gray-700", border: "border-gray-200" };
+}
+
 export default function SearchPage() {
   const [query, setQuery] = useState("");
   const [recommendation, setRecommendation] = useState("");
@@ -73,14 +86,20 @@ export default function SearchPage() {
           <div className="space-y-4">
             <ReactMarkdown
               components={{
-                h3: ({ children }) => {
-                  // h3 contains the linked title
+                h2: ({ children }) => {
+                  const text = String(children);
+                  const color = getGroupColor(text);
                   return (
-                    <div className="pt-2">
-                      <h3 className="text-base font-semibold">{children}</h3>
+                    <div className={`mt-6 mb-3 px-3 py-2 rounded-lg border ${color.bg} ${color.border}`}>
+                      <h2 className={`text-sm font-semibold ${color.text}`}>{children}</h2>
                     </div>
                   );
                 },
+                h3: ({ children }) => (
+                  <div className="pt-2">
+                    <h3 className="text-base font-semibold">{children}</h3>
+                  </div>
+                ),
                 a: ({ href, children }) => (
                   <a
                     href={href}
@@ -91,33 +110,12 @@ export default function SearchPage() {
                     {children}
                   </a>
                 ),
-                em: ({ children }) => {
-                  const text = String(children);
-                  // Type labels come through as italic
-                  const typeLabels: Record<string, string> = {
-                    "article": "Article",
-                    "advisor-doc": "Adviser Document",
-                    "infographic": "Infographic",
-                    "pdf-guide": "PDF Guide",
-                    "video": "Video",
-                    "email-sequence": "Email Sequence",
-                  };
-                  const label = typeLabels[text] || typeLabels[text.toLowerCase()];
-                  if (label || text.includes("Article") || text.includes("Document") || text.includes("Infographic") || text.includes("Guide") || text.includes("Video") || text.includes("Sequence")) {
-                    return (
-                      <span className="inline-block text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded mb-2">
-                        {label || text}
-                      </span>
-                    );
-                  }
-                  return <em>{children}</em>;
-                },
                 p: ({ children }) => (
                   <p className="text-sm text-gray-700 leading-relaxed mt-1 mb-0">
                     {children}
                   </p>
                 ),
-                hr: () => <hr className="border-gray-200 my-4" />,
+                hr: () => <hr className="border-gray-100 my-4" />,
               }}
             >
               {recommendation}
