@@ -42,8 +42,11 @@ export async function generateSummary(
   let messageContent: Anthropic.MessageCreateParams["messages"][0]["content"];
 
   if (isInfographic) {
+    const isPdfUrl = content.toLowerCase().endsWith(".pdf");
     messageContent = [
-      { type: "image", source: { type: "url", url: content } },
+      isPdfUrl
+        ? { type: "document" as const, source: { type: "url" as const, url: content } }
+        : { type: "image" as const, source: { type: "url" as const, url: content } },
       { type: "text", text: userMessage },
     ];
   } else if (isPdf) {
