@@ -12,6 +12,15 @@ const CONTENT_TYPES: { value: ContentType; label: string; inputMode: "text" | "f
   { value: "email-sequence", label: "Email Sequence", inputMode: "text" },
 ];
 
+const TYPE_COLORS: Record<ContentType, { bg: string; text: string; activeBg: string }> = {
+  "article": { bg: "bg-blue-50", text: "text-blue-700", activeBg: "bg-blue-600" },
+  "advisor-doc": { bg: "bg-amber-50", text: "text-amber-700", activeBg: "bg-amber-600" },
+  "infographic": { bg: "bg-purple-50", text: "text-purple-700", activeBg: "bg-purple-600" },
+  "pdf-guide": { bg: "bg-emerald-50", text: "text-emerald-700", activeBg: "bg-emerald-600" },
+  "video": { bg: "bg-rose-50", text: "text-rose-700", activeBg: "bg-rose-600" },
+  "email-sequence": { bg: "bg-cyan-50", text: "text-cyan-700", activeBg: "bg-cyan-600" },
+};
+
 interface IndexedItem {
   id: string;
   title: string;
@@ -344,8 +353,8 @@ export default function AdminPage() {
                     onClick={() => setFilterType(t.value)}
                     className={`text-xs px-3 py-1 rounded-full ${
                       filterType === t.value
-                        ? "bg-black text-white"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        ? `${TYPE_COLORS[t.value].activeBg} text-white`
+                        : `${TYPE_COLORS[t.value].bg} ${TYPE_COLORS[t.value].text} hover:opacity-80`
                     }`}
                   >
                     {t.label} ({count})
@@ -373,8 +382,8 @@ export default function AdminPage() {
                     <div className="flex-1 mr-4">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-medium text-sm">{item.title}</span>
-                        <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">
-                          {item.type}
+                        <span className={`text-xs px-2 py-0.5 rounded ${TYPE_COLORS[item.type].bg} ${TYPE_COLORS[item.type].text}`}>
+                          {CONTENT_TYPES.find((t) => t.value === item.type)?.label || item.type}
                         </span>
                       </div>
                       <p className="text-xs text-gray-400">
