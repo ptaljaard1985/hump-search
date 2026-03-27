@@ -34,7 +34,7 @@ export async function generateSummary(
   const typeLabel = contentType.replace("-", " ");
 
   const userMessage = isInfographic
-    ? `This is an infographic titled "${title}". Please analyse the image and create a search-optimised summary describing when and how a financial adviser would use this with clients.`
+    ? `This is an infographic titled "${title}". Please analyse the image and create a search-optimised summary describing when and how a financial adviser would use this with clients. Write the description in an evergreen fashion — do not mention specific calendar years or dates, even if the visual refers to them. The description should remain relevant even if the visual is later updated with newer data.`
     : isPdf
       ? `This is a PDF guide titled "${title}". Please read the document and create a search-optimised summary describing when and how a financial adviser would use this with clients.`
       : `This is a ${typeLabel} titled "${title}". Please create a search-optimised summary:\n\n${content}`;
