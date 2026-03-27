@@ -103,7 +103,8 @@ export async function checkDuplicate(
 
   const rows = allRows as { id: string; title: string; url: string; type: string }[];
   const titleMatch = rows.find((d) => d.title.trim().toLowerCase() === normTitle);
-  const urlMatch = rows.find(
+  const normUrl = url.trim().toLowerCase().replace(/\/+$/, "");
+  const urlMatch = skipUrlCheck ? undefined : rows.find(
     (d) => d.url.trim().toLowerCase().replace(/\/+$/, "") === normUrl
   );
 
