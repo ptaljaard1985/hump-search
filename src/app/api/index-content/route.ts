@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Build the complete item BEFORE touching the index
-    const summary = providedSummary || (await generateSummary(content, type, title, mediaType));
+    const summary = providedSummary || (await generateSummary(content, type, title));
     const embedding = await generateEmbedding(buildEmbeddingText(title, type, summary));
 
     const item = {

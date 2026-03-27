@@ -28,7 +28,6 @@ export async function generateSummary(
   content: string,
   contentType: ContentType,
   title: string,
-  mediaType?: string
 ): Promise<string> {
   const isInfographic = contentType === "infographic";
   const isPdf = contentType === "pdf-guide";

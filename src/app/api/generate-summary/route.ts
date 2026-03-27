@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const summary = await generateSummary(content, type, title, mediaType);
+    const summary = await generateSummary(content, type, title);
     return NextResponse.json({ summary });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
