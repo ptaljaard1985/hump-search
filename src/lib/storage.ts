@@ -75,26 +75,30 @@ export async function getContentItem(id: string): Promise<Omit<ContentItem, "emb
 
 export async function checkDuplicate(
   title: string,
-  url: string
+  url: string,
+  skipUrlCheck: boolean = false
 ): Promise<{ matchType: string; item: { id: string; title: string; url: string; type: string } } | null> {
   const supabase = getSupabase();
   const normTitle = title.trim().toLowerCase();
-  const normUrl = url.trim().toLowerCase().replace(/\/+$/, "");
 
   // Use two separate queries to avoid filter injection from special characters
-  const [titleResult, urlResult] = await Promise.all([
-    supabase.from("content_items").select("id, title, url, type").ilike("title", normTitle),
-    supabase.from("content_items").select("id, title, url, type").ilike("url", normUrl),
-  ]);
+  const titleResult = await supabase.from("content_items").select("id, title, url, type").ilike("title", normTitle);
 
   if (titleResult.error) {
     throw new Error(`Failed to check duplicates: ${titleResult.error.message}`);
   }
-  if (urlResult.error) {
-    throw new Error(`Failed to check duplicates: ${urlResult.error.message}`);
+
+  let urlData: { id: string; title: string; url: string; type: string }[] = [];
+  if (!skipUrlCheck) {
+    const normUrl = url.trim().toLowerCase().replace(/\/+$/, "");
+    const urlResult = await supabase.from("content_items").select("id, title, url, type").ilike("url", normUrl);
+    if (urlResult.error) {
+      throw new Error(`Failed to check duplicates: ${urlResult.error.message}`);
+    }
+    urlData = urlResult.data || [];
   }
 
-  const allRows = [...(titleResult.data || []), ...(urlResult.data || [])];
+  const allRows = [...(titleResult.data || []), ...urlData];
   if (allRows.length === 0) return null;
 
   const rows = allRows as { id: string; title: string; url: string; type: string }[];

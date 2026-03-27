@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     }
     // Check for duplicates (skip if replacing)
     if (!replaceId) {
-      const duplicate = await checkDuplicate(title, url);
+      const duplicate = await checkDuplicate(title, url, type === "pdf-guide");
       if (duplicate) {
         return NextResponse.json(
           {
