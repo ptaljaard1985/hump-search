@@ -7,7 +7,9 @@ export async function GET(request: NextRequest) {
   try {
     const limit = Number(request.nextUrl.searchParams.get("limit")) || 100;
     const logs = await getSearchLogs(limit);
-    return NextResponse.json({ logs });
+    return NextResponse.json({ logs }, {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

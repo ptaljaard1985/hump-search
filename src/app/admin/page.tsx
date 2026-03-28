@@ -328,7 +328,7 @@ export default function AdminPage() {
                   onClick={async () => {
                     setLogsLoading(true);
                     try {
-                      const res = await fetch("/api/search-logs");
+                      const res = await fetch(`/api/search-logs?t=${Date.now()}`);
                       const data = await res.json();
                       if (res.ok) setSearchLogs(data.logs);
                     } catch (err) {
@@ -351,7 +351,7 @@ export default function AdminPage() {
                   }
                   setLogsLoading(true);
                   try {
-                    const res = await fetch("/api/search-logs");
+                    const res = await fetch(`/api/search-logs?t=${Date.now()}`);
                     const data = await res.json();
                     if (res.ok) setSearchLogs(data.logs);
                   } catch (err) {
