@@ -324,19 +324,25 @@ export default function AdminPage() {
             <h2 className="text-lg font-medium">Search Logs</h2>
             <button
               onClick={async () => {
-                if (!logsVisible) {
-                  setLogsLoading(true);
-                  try {
-                    const res = await fetch("/api/search-logs");
-                    if (res.ok) {
-                      const data = await res.json();
-                      setSearchLogs(data.logs);
-                    }
-                  } finally {
-                    setLogsLoading(false);
-                  }
+                if (logsVisible) {
+                  setLogsVisible(false);
+                  return;
                 }
-                setLogsVisible(!logsVisible);
+                setLogsLoading(true);
+                try {
+                  const res = await fetch("/api/search-logs");
+                  const data = await res.json();
+                  if (res.ok) {
+                    setSearchLogs(data.logs);
+                  } else {
+                    console.error("Search logs error:", data.error);
+                  }
+                } catch (err) {
+                  console.error("Failed to fetch search logs:", err);
+                } finally {
+                  setLogsLoading(false);
+                  setLogsVisible(true);
+                }
               }}
               className="text-xs border px-3 py-1 rounded hover:bg-gray-50"
             >
