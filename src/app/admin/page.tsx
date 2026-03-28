@@ -322,32 +322,50 @@ export default function AdminPage() {
         <div className="bg-white p-6 rounded-lg shadow-md mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-medium">Search Logs</h2>
-            <button
-              onClick={async () => {
-                if (logsVisible) {
-                  setLogsVisible(false);
-                  return;
-                }
-                setLogsLoading(true);
-                try {
-                  const res = await fetch("/api/search-logs");
-                  const data = await res.json();
-                  if (res.ok) {
-                    setSearchLogs(data.logs);
-                  } else {
-                    console.error("Search logs error:", data.error);
+            <div className="flex gap-2">
+              {logsVisible && (
+                <button
+                  onClick={async () => {
+                    setLogsLoading(true);
+                    try {
+                      const res = await fetch("/api/search-logs");
+                      const data = await res.json();
+                      if (res.ok) setSearchLogs(data.logs);
+                    } catch (err) {
+                      console.error("Failed to fetch search logs:", err);
+                    } finally {
+                      setLogsLoading(false);
+                    }
+                  }}
+                  disabled={logsLoading}
+                  className="text-xs border px-3 py-1 rounded hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {logsLoading ? "Loading..." : "Refresh"}
+                </button>
+              )}
+              <button
+                onClick={async () => {
+                  if (logsVisible) {
+                    setLogsVisible(false);
+                    return;
                   }
-                } catch (err) {
-                  console.error("Failed to fetch search logs:", err);
-                } finally {
-                  setLogsLoading(false);
-                  setLogsVisible(true);
-                }
-              }}
-              className="text-xs border px-3 py-1 rounded hover:bg-gray-50"
-            >
-              {logsLoading ? "Loading..." : logsVisible ? "Hide" : "Show"}
-            </button>
+                  setLogsLoading(true);
+                  try {
+                    const res = await fetch("/api/search-logs");
+                    const data = await res.json();
+                    if (res.ok) setSearchLogs(data.logs);
+                  } catch (err) {
+                    console.error("Failed to fetch search logs:", err);
+                  } finally {
+                    setLogsLoading(false);
+                    setLogsVisible(true);
+                  }
+                }}
+                className="text-xs border px-3 py-1 rounded hover:bg-gray-50"
+              >
+                {logsVisible ? "Hide" : "Show"}
+              </button>
+            </div>
           </div>
 
           {logsVisible && (
