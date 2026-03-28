@@ -53,6 +53,10 @@ export default function AdminPage() {
   const [filterType, setFilterType] = useState<ContentType | "all">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  const [searchLogs, setSearchLogs] = useState<{ id: string; query: string; result_count: number; created_at: string }[]>([]);
+  const [logsVisible, setLogsVisible] = useState(false);
+  const [logsLoading, setLogsLoading] = useState(false);
+
   const selectedType = CONTENT_TYPES.find((t) => t.value === contentType)!;
 
   const filteredItems =
@@ -312,6 +316,50 @@ export default function AdminPage() {
               <p className="text-sm text-gray-600">{status}</p>
             )}
           </div>
+        </div>
+
+        {/* Search Logs */}
+        <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-medium">Search Logs</h2>
+            <button
+              onClick={async () => {
+                if (!logsVisible) {
+                  setLogsLoading(true);
+                  try {
+                    const res = await fetch("/api/search-logs");
+                    if (res.ok) {
+                      const data = await res.json();
+                      setSearchLogs(data.logs);
+                    }
+                  } finally {
+                    setLogsLoading(false);
+                  }
+                }
+                setLogsVisible(!logsVisible);
+              }}
+              className="text-xs border px-3 py-1 rounded hover:bg-gray-50"
+            >
+              {logsLoading ? "Loading..." : logsVisible ? "Hide" : "Show"}
+            </button>
+          </div>
+
+          {logsVisible && (
+            searchLogs.length === 0 ? (
+              <p className="text-sm text-gray-500">No searches logged yet.</p>
+            ) : (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {searchLogs.map((log) => (
+                  <div key={log.id} className="flex justify-between items-center text-sm border-b pb-2">
+                    <span className="text-gray-800">{log.query}</span>
+                    <span className="text-xs text-gray-400 whitespace-nowrap ml-4">
+                      {new Date(log.created_at).toLocaleDateString()} {new Date(log.created_at).toLocaleTimeString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )
+          )}
         </div>
 
         {/* Indexed Content List */}

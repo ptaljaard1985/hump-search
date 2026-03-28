@@ -175,6 +175,34 @@ export async function updateContentItem(
   }
 }
 
+export async function logSearch(query: string, resultCount: number): Promise<void> {
+  const supabase = getSupabase();
+  const { error } = await supabase.from("search_logs").insert({
+    query,
+    result_count: resultCount,
+  });
+
+  if (error) {
+    // Log but don't throw — search logging should never break the search itself
+    console.error("Failed to log search:", error.message);
+  }
+}
+
+export async function getSearchLogs(limit: number = 100): Promise<{ id: string; query: string; result_count: number; created_at: string }[]> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from("search_logs")
+    .select("id, query, result_count, created_at")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw new Error(`Failed to fetch search logs: ${error.message}`);
+  }
+
+  return data || [];
+}
+
 export async function deleteContentItem(id: string): Promise<void> {
   const supabase = getSupabase();
   const { data, error } = await supabase

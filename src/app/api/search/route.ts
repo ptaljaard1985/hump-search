@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRecommendations } from "@/lib/search";
-import { getContentItems } from "@/lib/storage";
+import { getContentItems, logSearch } from "@/lib/storage";
 
 const ALLOWED_ORIGINS = [
   "https://www.humansundermanagement.com",
@@ -45,6 +45,9 @@ export async function POST(request: NextRequest) {
 
     // Send all items to Claude for recommendation
     const recommendation = await getRecommendations(query, items);
+
+    // Log the search (fire-and-forget)
+    logSearch(query, items.length);
 
     // Verify URLs — strip any that aren't in our index
     const validUrls = new Set(items.map((item) => item.url));
