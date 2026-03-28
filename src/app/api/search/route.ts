@@ -46,8 +46,8 @@ export async function POST(request: NextRequest) {
     // Send all items to Claude for recommendation
     const recommendation = await getRecommendations(query, items);
 
-    // Log the search (fire-and-forget)
-    logSearch(query, items.length);
+    // Log the search
+    await logSearch(query, items.length);
 
     // Verify URLs — strip any that aren't in our index
     const validUrls = new Set(items.map((item) => item.url));
