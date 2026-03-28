@@ -192,7 +192,7 @@ export async function getSearchLogs(limit: number = 100): Promise<{ id: string; 
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from("search_logs")
-    .select("id, query, result_count, created_at")
+    .select("*")
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -200,7 +200,12 @@ export async function getSearchLogs(limit: number = 100): Promise<{ id: string; 
     throw new Error(`Failed to fetch search logs: ${error.message}`);
   }
 
-  return data || [];
+  return (data || []).map((row: Record<string, unknown>) => ({
+    id: row.id as string,
+    query: row.query as string,
+    result_count: row.result_count as number,
+    created_at: row.created_at as string,
+  }));
 }
 
 export async function deleteContentItem(id: string): Promise<void> {
