@@ -11,7 +11,11 @@ function getSupabase() {
     if (!url || !key) {
       throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
     }
-    _supabase = createClient(url, key);
+    _supabase = createClient(url, key, {
+      global: {
+        fetch: (url, init) => fetch(url, { ...init, cache: "no-store" }),
+      },
+    });
   }
   return _supabase;
 }
