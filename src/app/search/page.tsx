@@ -181,6 +181,7 @@ export default function SearchPage() {
             >
               {recommendation}
             </ReactMarkdown>
+            <p className="text-center text-xs text-gray-400 mt-8 mb-2">— End of search results —</p>
           </div>
         )}
 
