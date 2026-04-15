@@ -59,7 +59,7 @@ export async function generateSummary(
   }
 
   const response = await getAnthropic().messages.create({
-    model: isInfographic ? "claude-opus-4-20250514" : "claude-sonnet-4-20250514",
+    model: isInfographic ? "claude-opus-4-6" : "claude-sonnet-4-6",
     max_tokens: 500,
     temperature: 0,
     system: SYSTEM_PROMPT,
