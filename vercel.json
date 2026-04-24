@@ -1,1 +1,12 @@
-{}
+{
+  "crons": [
+    {
+      "path": "/api/keepalive",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/keepalive-search",
+      "schedule": "0 10 * * *"
+    }
+  ]
+}
