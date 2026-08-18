@@ -22,15 +22,22 @@ AI-powered semantic search tool for HUM Premium members to find content from a 6
 
 ## Key Architecture Decisions
 
-- Two-stage search *as designed*: vector similarity narrows to top 8–10, Claude recommends from those
+- Two-stage search *as designed*: vector similarity narrows to a shortlist, Claude recommends from those. `findSimilarContent()` defaults to `topK = 6`, `minSimilarity = 0.25` — do not confuse this with the 8-item **result cap** below, which limits what Claude returns, not what it sees.
 - **As shipped, stage 1 is not wired up** — `/api/search` sends the whole index (216 items) to Claude in one prompt. `findSimilarContent()` in `embeddings.ts` is uncalled. Embeddings are still generated and stored on index/update, so stage 1 can be reconnected without a re-embed. See `spec.md` → "As-built differences".
-- All Claude calls use `temperature: 0`
+- All Claude calls use `temperature: 0`. This is load-bearing, not cosmetic — it is why the same query returns the same results. It also constrains model choice: current-generation models reject the parameter outright (see Model Choice below).
 - Claude never searches or recalls from training data — it only sees items passed to it from the verified index
 - Anti-hallucination: Claude can only recommend from items explicitly passed to it
 - Summaries are use-case-oriented (describe when an adviser would use the content, not academic descriptions)
 - Search results formatted as markdown with linked titles, type badges, and brief explanations
 - **Result cap: 8 items**, enforced in the search system prompt, with `max_tokens: 2000` for headroom. Both matter together: without the cap Claude returns 15–19 items and truncates mid-link. Measured at ~580 output tokens for a capped answer. If you change the cap, re-check `max_tokens`.
 - **Closing note allowed on a genuine gap:** Claude may end with one sentence naming something the member wanted that the library does not cover, so it reads as missing rather than overlooked. It must not write a closing summary that repeats the recommendations, and must not use the sentence as a sign-off. In testing this fired only where a real gap existed.
+
+## Model Choice
+
+- **Search: `claude-sonnet-4-6` (`src/lib/search.ts`). This is a tested decision, not an unreviewed default — do not "upgrade" it without re-running the comparison.** Benchmarked against Sonnet 5 and Haiku 4.5 on the five most recent real member queries, 18 August 2026. Full outputs in `scripts/model-comparison-2026-08-18.md`.
+  - **Haiku 4.5** is 3x cheaper and was rejected: it returns false negatives on short queries, reporting no cashflow content when three relevant articles existed. 46% of real member queries are one or two words, so this is not an edge case. It is also poorly calibrated in the other direction, returning 16 items on the queries it did answer.
+  - **Sonnet 5** was rejected on two counts: it rejects `temperature: 0` with a 400 (`` `temperature` is deprecated for this model ``), breaking the determinism rule above; and its tokenizer inflates the same prompt from 61,571 to 93,408 tokens, making it ~45% more expensive than Sonnet 4.6 from 1 September 2026 when introductory pricing ends. It is genuinely faster and better calibrated on item count, so revisit if the determinism rule is ever relaxed.
+- **Indexing: `claude-opus-4-6` for infographics, `claude-sonnet-4-6` for everything else (`src/lib/summarise.ts`).** These were **not** covered by the comparison above, which tested search only. Changing them affects new summaries only — existing summaries were written by the current models, so a switch leaves the index stylistically inconsistent unless you re-summarise everything.
 
 ## Language Rules
 
@@ -126,8 +133,7 @@ CRON_SECRET=            # Optional; if set, keepalive crons require Bearer auth
 
 ## Known Issues
 
-- Squarespace embedding not working — multiple approaches failed (iframe blocked by Vercel X-Frame-Options, inline JS mangled by Squarespace smart quotes, external scripts not executed in code blocks). Current workaround: button link to standalone search page.
-- Admin password protection temporarily removed (see commit 4ec50bd)
-- Model IDs pinned to `claude-sonnet-4-6` / `claude-opus-4-6` (`src/lib/search.ts`, `src/lib/summarise.ts`). Newer models exist; upgrade deliberately, since the indexed summaries were written by the current ones.
-- `middleware.ts` now clears `X-Frame-Options` and sets `frame-ancestors` for the Squarespace domains, so an iframe embed may be worth retrying.
-- No videos indexed (spec allows for 5).
+- **Squarespace embedding not working.** Multiple approaches failed: iframe blocked by Vercel's `X-Frame-Options`, inline JS mangled by Squarespace smart quotes, external scripts not executed in code blocks. Current workaround is a button linking to the standalone search page. Worth one more attempt: `middleware.ts` now clears `X-Frame-Options` and sets `frame-ancestors` for the Squarespace domains, which was the original blocker.
+- **Admin password protection temporarily removed** (see commit `4ec50bd`).
+- **No videos indexed.** `spec.md` allows for 5; the index has 0. The only content type entirely absent.
+- **Stage 1 vector search not wired up** — see Key Architecture Decisions. Not a bug: deliberate at current volume (~36 searches/month, $87/year). Reconsider past ~250/month. Reconnection notes in `spec.md` → "Reconnecting stage 1".
