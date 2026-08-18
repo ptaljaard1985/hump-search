@@ -8,12 +8,30 @@ The tool also includes an admin interface for indexing content, with AI-powered 
 
 ---
 
+## Status
+
+**As built, last verified 18 August 2026.** This document is the product
+specification; where the shipped system differs, the difference is called out
+inline and collected under "As-built differences" at the end.
+
+Live index: **216 items** — 117 articles, 48 infographics, 42 adviser documents,
+6 PDF guides, 3 email sequences, 0 videos. 300 searches logged to date.
+
+---
+
 ## Architecture
 
 ### Approach: Two-Stage Semantic Search
 
 1. **Stage 1 — Vector search (cheap, fast):** Member query is converted to an embedding and matched against pre-computed content embeddings using cosine similarity. Returns top 8–10 candidates.
 2. **Stage 2 — Claude recommendation (intelligent):** The 8–10 candidate summaries are passed to Claude Sonnet with the member's query. Claude selects the best 3–5 matches and explains why each is relevant.
+
+> **Not currently how it runs.** Stage 1 is not wired into the search route.
+> `/api/search` loads the whole index and passes every item to Claude in a
+> single prompt. `findSimilarContent()` in `src/lib/embeddings.ts` (top-K 6,
+> minimum similarity 0.25) exists but nothing calls it. Embeddings are still
+> generated and stored on every index and update, so stage 1 can be reconnected
+> without a re-embed.
 
 ### Anti-Hallucination Design
 
@@ -34,7 +52,7 @@ All Claude API calls use `temperature: 0` — both summary generation and member
 |---|---|---|
 | Framework | Next.js | Admin UI, search UI, API routes — single project |
 | Hosting | Vercel | Free tier sufficient |
-| Storage | Vercel Blob | Stores content index JSON |
+| Storage | Supabase Postgres + pgvector | Stores content items and embeddings |
 | Embeddings | OpenAI `text-embedding-3-small` | Converts summaries to vectors |
 | Summary generation | Claude Sonnet (articles, docs, PDFs, videos, sequences) / Claude Opus (infographics) | AI-powered content summarisation during indexing |
 | Member search responses | Claude Sonnet | Generates natural language recommendations |
@@ -48,22 +66,26 @@ All Claude API calls use `temperature: 0` — both summary generation and member
 
 ## Content Inventory
 
-| Content Type | Count | Input Method | Model for Summary | Indexed As |
-|---|---|---|---|---|
-| Client articles | 120 | Paste text | Sonnet | Individual |
-| Advisor documents | 40 | Paste text | Sonnet | Individual |
-| Infographics | ~40 | Upload image | Opus | Individual |
-| PDF guides | 6 | Upload PDF | Sonnet | Individual |
-| Videos | 5 | Paste description | Sonnet | Individual |
-| Email sequences | 3 | Paste all emails as one | Sonnet | Per sequence |
-| **Total** | **~214** | | | |
+| Content Type | Type value | Planned | Indexed | Input Method | Model | Indexed As |
+|---|---|---|---|---|---|---|
+| Client articles | `article` | 120 | 117 | Paste text | Sonnet | Individual |
+| Adviser documents | `advisor-doc` | 40 | 42 | Paste text | Sonnet | Individual |
+| Infographics | `infographic` | ~40 | 48 | Upload image | Opus | Individual |
+| PDF guides | `pdf-guide` | 6 | 6 | Upload PDF | Sonnet | Individual |
+| Videos | `video` | 5 | 0 | Paste description | Sonnet | Individual |
+| Email sequences | `email-sequence` | 3 | 3 | Paste all emails as one | Sonnet | Per sequence |
+| **Total** | | **~214** | **216** | | | |
+
+House style is "adviser", never "advisor". The type value `advisor-doc` is the
+one exception: it is stored in the database and in the `ContentType` union, so
+it stays as it is. Prose and member-facing text always say "adviser".
 
 ### Notes on Content
 
 - All content lives on the Squarespace member portal
 - Each article has an accompanying sketch — these are not indexed separately but can be referenced alongside their parent article
 - Email sequences are indexed as one item per sequence (not per individual email)
-- Video descriptions are written manually (5 items, not worth automating transcription from Vimeo)
+- Video descriptions are written manually (not worth automating transcription from Vimeo). None are indexed yet.
 
 ---
 
@@ -78,7 +100,7 @@ All Claude API calls use `temperature: 0` — both summary generation and member
 1. Select content type from dropdown
 2. Enter title and Squarespace URL
 3. Input content:
-   - **Articles, advisor docs, email sequences:** Paste text
+   - **Articles, adviser docs, email sequences:** Paste text
    - **Infographics:** Upload image
    - **PDF guides:** Upload PDF
    - **Videos:** Paste written description
@@ -115,10 +137,10 @@ The summary generation prompt is pre-loaded with context about:
 ### Search Flow
 
 1. Member types a natural language query describing their situation or need
-2. Query is converted to an embedding via OpenAI
-3. Cosine similarity finds the top 8–10 matching content items from the index
-4. Those items (title, URL, summary, type) are sent to Claude Sonnet with the query
-5. Claude returns a recommendation of 3–5 items with:
+2. Candidate items are gathered from the index (see the stage 1 note above — at
+   present this is the whole index, not a vector-narrowed subset)
+3. Those items (title, URL, summary, type) are sent to Claude Sonnet with the query
+4. Claude returns **at most 8 items**, grouped by content type, with:
    - Content title
    - Content type label
    - Why it's relevant to their situation
@@ -127,13 +149,16 @@ The summary generation prompt is pre-loaded with context about:
 ### Edge Cases
 
 - **No good matches:** Claude responds with a helpful message suggesting they browse by category or rephrase their query
+- **Many good matches:** the system prompt caps output at 8 items and instructs Claude to pick the 8 strongest. Before 18 August 2026 there was no cap — Claude returned 15–19 items and responses were silently truncated mid-link at `max_tokens: 1200`.
+- **Partial gap in the library:** Claude may close with a single sentence naming what the member seems to want but the library does not hold. This doubles as a content-gap signal worth reviewing periodically.
 - **URL verification:** Frontend checks all returned URLs exist in the content index before displaying
 
 ---
 
 ## Data Model
 
-Each content item in the index:
+One row per item in `content_items`. `embedding` is a pgvector `VECTOR(1536)`
+column and is excluded from the payload sent to Claude.
 
 ```json
 {
@@ -166,10 +191,15 @@ Each content item in the index:
 | Item | Cost |
 |---|---|
 | Vercel hosting | Free tier |
-| Vercel Blob storage | Free tier |
+| Supabase Postgres | Free tier |
 | Claude search queries (500 queries/mo) | ~$10 |
 | Claude search queries (1,750 queries/mo) | ~$35 |
 | New content indexing | Negligible |
+
+These estimates assumed stage 1 narrowing to 8–10 items. Because the whole index
+is currently sent on every search, the real input-token cost per query is
+substantially higher — a sample run at 117 items measured ~34k input tokens.
+Worth re-estimating before any volume increase.
 
 ---
 
@@ -177,18 +207,32 @@ Each content item in the index:
 
 ```
 hump-search/
-├── app/
-│   ├── admin/           # Admin interface for indexing content
-│   ├── search/          # Member-facing search page (embeddable)
-│   └── api/
-│       ├── index/       # Generate summary, create embedding, save to index
-│       ├── search/      # Semantic search + Claude recommendation
-│       └── content/     # CRUD operations on indexed content
-├── lib/
-│   ├── embeddings.ts    # OpenAI embedding generation + cosine similarity
-│   ├── summarise.ts     # Claude summary generation with system prompt
-│   └── storage.ts       # Vercel Blob read/write operations
+├── src/
+│   ├── middleware.ts            # Clears X-Frame-Options, sets CSP for /search
+│   ├── app/
+│   │   ├── admin/               # Admin interface for indexing content
+│   │   ├── search/              # Member-facing search page
+│   │   └── api/
+│   │       ├── index-content/   # Generate summary + embedding, save to index
+│   │       ├── generate-summary/# Generate summary only (preview)
+│   │       ├── search/          # Member search + Claude recommendation
+│   │       ├── search-logs/     # Fetch search logs (admin)
+│   │       ├── content/         # CRUD operations on indexed content
+│   │       ├── backup/          # Export full index as JSON
+│   │       ├── keepalive/       # Daily cron — touches content_items
+│   │       └── keepalive-search/# Daily cron — touches search_logs
+│   └── lib/
+│       ├── types.ts             # ContentType, ContentItem, SearchResult
+│       ├── embeddings.ts        # OpenAI embeddings + cosine similarity
+│       ├── summarise.ts         # Claude summary generation with system prompt
+│       ├── search.ts            # Claude recommendation from candidates
+│       ├── storage.ts           # Supabase read/write operations
+│       └── auth.ts              # Password check
+├── public/widget.js             # Embeddable widget (not currently in use)
+├── scripts/                     # Migration, re-embed, model comparison, tests
+├── vercel.json                  # Keepalive cron schedules
 ├── spec.md
+├── README.md
 └── package.json
 ```
 
@@ -196,7 +240,39 @@ hump-search/
 
 ## Future Considerations
 
-- **Content growth:** Architecture handles thousands of items without changes. If the library grows significantly, a lightweight vector database (e.g., Turso with SQLite) could replace the JSON file.
+- **Content growth:** Storage is already Postgres with pgvector, so the index scales well past the current 216 items. The binding constraint is the search prompt, not storage — see stage 1 below.
 - **Analytics:** Track what members search for to identify content gaps.
 - **Category browsing:** Complement search with curated category views.
 - **Feedback loop:** Allow members to rate recommendations to improve summaries over time.
+
+---
+
+## As-built differences
+
+Differences between this specification and the shipped system, verified
+18 August 2026. Nothing here is broken in production.
+
+| Area | Spec | As built |
+|---|---|---|
+| Storage | Vercel Blob JSON index | Supabase Postgres with pgvector |
+| Stage 1 retrieval | Cosine similarity narrows to top 8–10 | Not wired up; whole index sent to Claude |
+| `findSimilarContent()` | Core of stage 1 | Present but uncalled (top-K 6, min similarity 0.25) |
+| Result count | 3–5 items | Capped at 8 in the system prompt (18 Aug 2026); grouped by type |
+| Videos | 5 indexed | 0 indexed |
+| Search logging | Listed as a future analytics idea | Built — `search_logs` table, admin UI |
+| Keepalive | Not specified | Two daily Vercel crons keep Supabase awake |
+| Embedding | Summary only | `buildEmbeddingText(title, type, summary)` |
+
+### Reconnecting stage 1
+
+Embeddings are populated for all 216 items, so this is a search-route change
+only, with no re-embed required:
+
+1. Embed the member query with `generateEmbedding()`.
+2. Pass the query embedding and items to `findSimilarContent()`.
+3. Send the returned subset to `getRecommendations()` instead of all items.
+
+Tune `topK` and `minSimilarity` before switching — the defaults (6 and 0.25)
+have never run against live queries. Worth A/B-ing against current behaviour
+using `scripts/compare-models.ts` as a harness, since sending everything does
+produce good results today and is the reason the shortcut has held.
